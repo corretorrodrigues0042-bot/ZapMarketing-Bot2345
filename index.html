@@ -10,21 +10,33 @@
       body {
         font-family: 'Inter', sans-serif;
       }
+      /* Animação suave para o indicador de status */
+      @keyframes pulse-green {
+        0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); }
+        70% { box-shadow: 0 0 0 6px rgba(74, 222, 128, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+      }
+      .status-dot {
+        animation: pulse-green 2s infinite;
+      }
     </style>
   <script type="importmap">
 {
   "imports": {
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
-    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.10.1",
+    "react": "https://aistudiocdn.com/react@^19.2.1",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
     "react/": "https://aistudiocdn.com/react@^19.2.1/",
-    "react": "https://aistudiocdn.com/react@^19.2.1"
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0",
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.10.1",
+    "vite": "https://aistudiocdn.com/vite@^7.2.6",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1"
   }
 }
 </script>
 </head>
   <body class="bg-slate-50 text-slate-900">
     <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
   </body>
 </html>
