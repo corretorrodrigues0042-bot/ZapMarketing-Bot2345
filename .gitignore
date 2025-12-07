@@ -1,0 +1,19 @@
+# Dependências
+node_modules
+.pnp
+.pnp.js
+
+# Testes
+coverage
+
+# Produção
+build
+dist
+
+# Sistema e Logs
+.DS_Store
+*.log
+.env
+.vercel
+.firebase
+firebase-debug.log
