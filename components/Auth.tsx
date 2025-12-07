@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
-import { Bot, Lock, ArrowRight, Loader2, Sparkles, ShieldCheck } from 'lucide-react';
+import { Bot, Lock, ArrowRight, Loader2, Sparkles, ShieldCheck, Mail } from 'lucide-react';
 import { User } from '../types';
+import { auth, db } from '../services/firebaseConfig';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 interface AuthProps {
   onLogin: (user: User) => void;
@@ -10,6 +13,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -18,20 +22,59 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     setIsLoading(true);
     setError('');
 
-    // SIMULAÇÃO DE BACKEND
-    setTimeout(() => {
-      setIsLoading(false);
-      if (email && password.length >= 6) {
+    try {
+      if (isLogin) {
+        // LOGIN
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const uid = userCredential.user.uid;
+        
+        // Buscar dados extras do Firestore (Plano, etc)
+        const docRef = doc(db, 'users', uid);
+        const docSnap = await getDoc(docRef);
+        const userData = docSnap.exists() ? docSnap.data() : {};
+
         onLogin({
-          email: email,
-          name: email.split('@')[0],
-          plan: 'pro',
+          uid: uid,
+          email: userCredential.user.email || '',
+          name: userCredential.user.displayName || userData.name || 'Usuário',
+          plan: userData.plan || 'free',
           isAuthenticated: true
         });
+
       } else {
-        setError('Acesso negado. Verifique suas credenciais.');
+        // CADASTRO
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        
+        // Atualizar Profile
+        await updateProfile(user, { displayName: name });
+
+        // Criar documento no Firestore
+        await setDoc(doc(db, 'users', user.uid), {
+          name: name,
+          email: email,
+          plan: 'free', // Começa no Free
+          createdAt: new Date().toISOString()
+        });
+
+        onLogin({
+          uid: user.uid,
+          email: email,
+          name: name,
+          plan: 'free',
+          isAuthenticated: true
+        });
       }
-    }, 1000);
+    } catch (err: any) {
+      console.error(err);
+      let msg = "Erro na autenticação.";
+      if (err.code === 'auth/invalid-credential') msg = "Email ou senha incorretos.";
+      if (err.code === 'auth/email-already-in-use') msg = "Este email já está cadastrado.";
+      if (err.code === 'auth/weak-password') msg = "A senha deve ter pelo menos 6 caracteres.";
+      setError(msg);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -43,7 +86,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         <div className="absolute bottom-[-20%] left-[-10%] w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-[120px]" />
       </div>
 
-      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl w-full max-w-4xl flex overflow-hidden z-10 min-h-[500px]">
+      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col md:flex-row overflow-hidden z-10 min-h-[500px]">
         
         {/* Left Side - Brand */}
         <div className="hidden md:flex flex-col justify-center w-5/12 p-12 bg-gradient-to-br from-slate-900 to-slate-800 text-white border-r border-white/5 relative">
@@ -59,11 +102,15 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
               </p>
             </div>
 
-            <div className="pt-8 border-t border-white/10">
-               <div className="flex items-center gap-3 text-sm text-slate-300">
-                 <ShieldCheck className="w-5 h-5 text-emerald-400" />
-                 <span>Ambiente Seguro & Criptografado</span>
-               </div>
+            <div className="space-y-4 pt-4">
+                <div className="flex items-center gap-3 text-sm text-slate-300">
+                    <Sparkles className="w-4 h-4 text-yellow-400" />
+                    <span>IA Generativa (Gemini)</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm text-slate-300">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                    <span>Dados Criptografados</span>
+                </div>
             </div>
           </div>
         </div>
@@ -73,54 +120,75 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
           <div className="max-w-sm mx-auto w-full">
             <div className="mb-8">
               <h2 className="text-2xl font-bold text-slate-900">
-                {isLogin ? 'Acessar Painel' : 'Nova Conta'}
+                {isLogin ? 'Acessar Painel' : 'Criar Nova Conta'}
               </h2>
               <p className="text-slate-500 text-sm mt-1">
-                Entre com suas credenciais corporativas.
+                {isLogin ? 'Entre para gerenciar suas campanhas.' : 'Teste grátis por 7 dias. Não precisa de cartão.'}
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              
+              {!isLogin && (
+                <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Nome Completo</label>
+                    <input 
+                    type="text" 
+                    required
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-900 outline-none"
+                    placeholder="Seu nome"
+                    />
+                </div>
+              )}
+
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Email</label>
-                <input 
-                  type="email" 
-                  required
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-slate-900 outline-none transition-all"
-                  placeholder="nome@empresa.com"
-                />
+                <div className="relative">
+                    <Mail className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
+                    <input 
+                    type="email" 
+                    required
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-900 outline-none"
+                    placeholder="nome@empresa.com"
+                    />
+                </div>
               </div>
               
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Senha</label>
-                <input 
-                  type="password" 
-                  required
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-slate-900 outline-none transition-all"
-                  placeholder="••••••••"
-                />
+                <div className="relative">
+                    <Lock className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
+                    <input 
+                    type="password" 
+                    required
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-900 outline-none"
+                    placeholder="••••••••"
+                    />
+                </div>
               </div>
 
               {error && (
-                <div className="p-3 bg-red-50 text-red-600 text-xs font-medium rounded-lg border border-red-100 flex items-center gap-2">
-                  <Lock className="w-3 h-3" /> {error}
+                <div className="p-3 bg-red-50 text-red-600 text-xs font-medium rounded-lg border border-red-100 flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+                  <ShieldCheck className="w-3 h-3" /> {error}
                 </div>
               )}
 
               <button 
                 type="submit" 
                 disabled={isLoading}
-                className="w-full py-3.5 bg-slate-900 text-white rounded-lg font-semibold hover:bg-slate-800 transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 active:translate-y-0"
+                className="w-full py-3.5 bg-slate-900 text-white rounded-lg font-semibold hover:bg-slate-800 transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 active:translate-y-0 mt-2"
               >
                 {isLoading ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
                   <>
-                    {isLogin ? 'Entrar' : 'Registrar'}
+                    {isLogin ? 'Entrar' : 'Começar Grátis'}
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -130,9 +198,9 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             <div className="mt-8 text-center border-t border-slate-100 pt-6">
               <button 
                 onClick={() => setIsLogin(!isLogin)}
-                className="text-sm text-slate-500 hover:text-slate-900 transition-colors"
+                className="text-sm text-blue-600 font-bold hover:text-blue-800 transition-colors"
               >
-                {isLogin ? 'Não possui acesso? Criar conta' : 'Já possui conta? Fazer login'}
+                {isLogin ? 'Não possui acesso? Crie sua conta grátis' : 'Já tem conta? Fazer login'}
               </button>
             </div>
           </div>

@@ -67,10 +67,12 @@ export interface Visit {
 }
 
 export interface User {
+  uid: string; // Firebase UID
   email: string;
   name: string;
   plan: 'free' | 'pro' | 'enterprise';
   isAuthenticated: boolean;
+  companyName?: string;
 }
 
 export interface Lead {

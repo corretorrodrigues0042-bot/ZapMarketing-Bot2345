@@ -6,9 +6,10 @@ import { storageService } from '../services/storageService';
 
 interface LeadMinerProps {
   settings: AppSettings;
+  userId: string;
 }
 
-const LeadMiner: React.FC<LeadMinerProps> = ({ settings }) => {
+const LeadMiner: React.FC<LeadMinerProps> = ({ settings, userId }) => {
   const [niche, setNiche] = useState('');
   const [city, setCity] = useState('');
   const [strategy, setStrategy] = useState<'business' | 'comments' | 'groups'>('comments');
@@ -54,7 +55,7 @@ const LeadMiner: React.FC<LeadMinerProps> = ({ settings }) => {
     };
     
     // PERSISTÊNCIA AUTOMÁTICA
-    storageService.saveContact(newContact);
+    storageService.saveContact(userId, newContact);
     
     setImportedIds(prev => new Set(prev).add(lead.id));
   };

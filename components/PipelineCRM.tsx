@@ -1,20 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { Phone, ArrowRight, ArrowLeft, Trash2, Plus, RefreshCw } from 'lucide-react';
+import { Phone, ArrowRight, ArrowLeft, Trash2, Plus, RefreshCw, Loader2 } from 'lucide-react';
 import { Contact } from '../types';
 import { storageService } from '../services/storageService';
+import { auth } from '../services/firebaseConfig';
 
 const PipelineCRM: React.FC = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Load from storage on mount or refresh
+  // Load from Firebase on mount or refresh
   useEffect(() => {
-    const loaded = storageService.getContacts().map(c => ({
-      ...c,
-      pipelineStage: c.pipelineStage || 'new',
-      value: c.value || 0
-    }));
-    setContacts(loaded);
+    const loadContacts = async () => {
+      if (!auth.currentUser) return;
+      setIsLoading(true);
+      const loaded = await storageService.getContacts(auth.currentUser.uid);
+      setContacts(loaded.map(c => ({
+        ...c,
+        pipelineStage: c.pipelineStage || 'new',
+        value: c.value || 0
+      })));
+      setIsLoading(false);
+    };
+    loadContacts();
   }, [refreshKey]);
 
   const stages = [
@@ -25,14 +33,17 @@ const PipelineCRM: React.FC = () => {
     { id: 'closed', label: 'Venda Fechada', color: 'bg-green-50 border-green-200' },
   ];
 
-  const updateContactAndSave = (updatedContact: Contact) => {
-    // 1. Update Local State
+  const updateContactAndSave = async (updatedContact: Contact) => {
+    // 1. Update Local State (Optimistic UI)
     setContacts(prev => prev.map(c => c.id === updatedContact.id ? updatedContact : c));
-    // 2. Save to Storage (Persistent)
-    storageService.saveContact(updatedContact);
+    
+    // 2. Save to Cloud
+    if (auth.currentUser) {
+       await storageService.saveContact(auth.currentUser.uid, updatedContact);
+    }
   };
 
-  const moveCard = (contactId: string, direction: 'next' | 'prev') => {
+  const moveCard = async (contactId: string, direction: 'next' | 'prev') => {
     const contact = contacts.find(c => c.id === contactId);
     if (!contact) return;
 
@@ -47,16 +58,21 @@ const PipelineCRM: React.FC = () => {
     
     // Create updated object
     const updated = { ...contact, pipelineStage: newStage };
-    updateContactAndSave(updated);
+    await updateContactAndSave(updated);
   };
 
-  const deleteCard = (contactId: string) => {
+  const deleteCard = async (contactId: string) => {
     if(!confirm("Remover este lead do pipeline?")) return;
+    
     setContacts(prev => prev.filter(c => c.id !== contactId));
-    storageService.deleteContact(contactId);
+    
+    if (auth.currentUser) {
+      await storageService.deleteContact(auth.currentUser.uid, contactId);
+    }
   };
 
-  const generateDemoLeads = () => {
+  const generateDemoLeads = async () => {
+    if (!auth.currentUser) return;
     const demo: Contact = { 
         id: `demo-${Date.now()}`, 
         name: 'Cliente Teste', 
@@ -66,13 +82,17 @@ const PipelineCRM: React.FC = () => {
         value: 500000,
         source: 'Simulação'
     };
-    storageService.saveContact(demo);
+    await storageService.saveContact(auth.currentUser.uid, demo);
     setRefreshKey(k => k + 1);
   };
 
   const formatCurrency = (val?: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
   };
+
+  if (isLoading && contacts.length === 0) {
+      return <div className="h-[calc(100vh-140px)] flex items-center justify-center"><Loader2 className="animate-spin w-8 h-8 text-slate-300"/></div>;
+  }
 
   return (
     <div className="h-[calc(100vh-140px)] flex flex-col">

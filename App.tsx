@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Send, Settings as SettingsIcon, Calendar, Bot, Menu, X, LogOut, Crown, BarChart3, Search, Trello, BrainCircuit, Home, ArrowRight, AlertTriangle, Activity } from 'lucide-react';
+import { LayoutDashboard, Send, Settings as SettingsIcon, Calendar, Bot, Menu, X, LogOut, Crown, BarChart3, Search, Trello, BrainCircuit, Home, ArrowRight, AlertTriangle, Activity, CreditCard } from 'lucide-react';
 import CampaignBuilder from './components/CampaignBuilder';
 import Settings from './components/Settings';
 import VisitScheduler from './components/VisitScheduler';
@@ -8,23 +8,34 @@ import LeadMiner from './components/LeadMiner';
 import PipelineCRM from './components/PipelineCRM';
 import BotTrainer from './components/BotTrainer';
 import PropertyManager from './components/PropertyManager';
+import Subscription from './components/Subscription';
 import Auth from './components/Auth';
 import { AppSettings, Campaign, User } from './types';
 import { storageService } from './services/storageService';
+import { auth } from './services/firebaseConfig';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 
 interface DashboardProps {
   settings: AppSettings;
+  userId: string;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ settings }) => {
+const Dashboard: React.FC<DashboardProps> = ({ settings, userId }) => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [totalVisits, setTotalVisits] = useState(0);
 
   useEffect(() => {
-    setCampaigns(storageService.getCampaigns());
-  }, []);
+    // Carregamento Assíncrono do Firebase
+    const loadData = async () => {
+      const camps = await storageService.getCampaigns(userId);
+      const visits = await storageService.getVisits(userId);
+      setCampaigns(camps);
+      setTotalVisits(visits.length);
+    };
+    loadData();
+  }, [userId]);
 
   const totalEnvios = campaigns.reduce((acc, curr) => acc + (curr.status === 'completed' ? curr.targetContacts.length : 0), 0);
-  const totalVisitas = storageService.getVisits().length;
   
   const isConfigured = settings.greenApiInstanceId && settings.greenApiApiToken;
 
@@ -118,7 +129,7 @@ const Dashboard: React.FC<DashboardProps> = ({ settings }) => {
              <div className="bg-green-50 p-2 rounded-lg"><Calendar className="w-6 h-6 text-green-600" /></div>
           </div>
           <p className="text-sm font-medium text-slate-500">Visitas Agendadas</p>
-          <p className="text-3xl font-bold text-slate-900 mt-1">{totalVisitas}</p>
+          <p className="text-3xl font-bold text-slate-900 mt-1">{totalVisits}</p>
         </div>
       </div>
     </div>
@@ -127,10 +138,8 @@ const Dashboard: React.FC<DashboardProps> = ({ settings }) => {
 
 const App = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [user, setUser] = useState<User | null>(() => {
-    const savedUser = localStorage.getItem('zap_marketing_user');
-    return savedUser ? JSON.parse(savedUser) : null;
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
   
   const [settings, setSettings] = useState<AppSettings>(() => {
     const saved = localStorage.getItem('zap_marketing_settings');
@@ -146,24 +155,44 @@ const App = () => {
     };
   });
 
+  // FIREBASE AUTH LISTENER
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        // Em um app real, buscaríamos dados extras do Firestore aqui
+        setUser({
+           uid: firebaseUser.uid,
+           email: firebaseUser.email || '',
+           name: firebaseUser.displayName || 'Usuário',
+           plan: 'free', // Default, atualizado pelo Login Component
+           isAuthenticated: true
+        });
+      } else {
+        setUser(null);
+      }
+      setLoadingAuth(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
   const handleSaveSettings = (newSettings: AppSettings) => {
     setSettings(newSettings);
     localStorage.setItem('zap_marketing_settings', JSON.stringify(newSettings));
+    if (user?.uid) {
+        storageService.saveUserSettings(user.uid, newSettings);
+    }
   };
 
-  const handleCampaignCreated = (campaign: Campaign) => {
-    storageService.saveCampaign(campaign);
-    alert("Campanha salva com sucesso!");
+  const handleCampaignCreated = async (campaign: Campaign) => {
+    if (user?.uid) {
+        await storageService.saveCampaign(user.uid, campaign);
+        alert("Campanha salva na nuvem com sucesso!");
+    }
   };
 
-  const handleLogin = (userData: User) => {
-    setUser(userData);
-    localStorage.setItem('zap_marketing_user', JSON.stringify(userData));
-  };
-
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await signOut(auth);
     setUser(null);
-    localStorage.removeItem('zap_marketing_user');
     setMobileMenuOpen(false);
   };
 
@@ -181,8 +210,12 @@ const App = () => {
     </NavLink>
   );
 
+  if (loadingAuth) {
+    return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Activity className="animate-spin text-slate-400" /></div>;
+  }
+
   if (!user || !user.isAuthenticated) {
-    return <Auth onLogin={handleLogin} />;
+    return <Auth onLogin={setUser} />;
   }
 
   return (
@@ -233,6 +266,7 @@ const App = () => {
               <NavItem to="/visits" icon={Calendar} label="Agenda Visitas" />
               
               <p className="px-4 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 mt-6">Sistema</p>
+              <NavItem to="/subscription" icon={CreditCard} label="Meu Plano" />
               <NavItem to="/settings" icon={SettingsIcon} label="Configurações API" />
             </nav>
           </div>
@@ -248,9 +282,9 @@ const App = () => {
                    <p className="text-xs text-slate-500 truncate">{user.email}</p>
                  </div>
                </div>
-               <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-emerald-700 bg-emerald-50 px-2 py-1.5 rounded-lg w-full justify-center">
-                  <Crown className="w-3 h-3" /> Assinatura {user.plan.toUpperCase()}
-               </div>
+               <NavLink to="/subscription" className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-emerald-700 bg-emerald-50 px-2 py-1.5 rounded-lg w-full justify-center hover:bg-emerald-100 transition-colors">
+                  <Crown className="w-3 h-3" /> Plano {user.plan.toUpperCase()}
+               </NavLink>
              </div>
              <button 
               onClick={handleLogout}
@@ -268,18 +302,20 @@ const App = () => {
         <main className="flex-1 p-4 md:p-8 overflow-x-hidden mt-[57px] md:mt-0 max-w-[1600px]">
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<Dashboard settings={settings} />} />
+            <Route path="/dashboard" element={<Dashboard settings={settings} userId={user.uid} />} />
             <Route path="/campaigns" element={
               <CampaignBuilder 
                 settings={settings} 
                 onCampaignCreated={handleCampaignCreated} 
+                userId={user.uid}
               />
             } />
-            <Route path="/leads" element={<LeadMiner settings={settings} />} />
+            <Route path="/leads" element={<LeadMiner settings={settings} userId={user.uid} />} />
             <Route path="/pipeline" element={<PipelineCRM />} />
-            <Route path="/properties" element={<PropertyManager settings={settings} />} />
+            <Route path="/properties" element={<PropertyManager settings={settings} userId={user.uid} />} />
             <Route path="/trainer" element={<BotTrainer settings={settings} />} />
             <Route path="/visits" element={<VisitScheduler />} />
+            <Route path="/subscription" element={<Subscription user={user} />} />
             <Route path="/settings" element={
               <Settings 
                 settings={settings} 

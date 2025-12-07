@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Cloud, Wand2, Send, Monitor, FileSpreadsheet, Sparkles, Check, ChevronRight, Zap, Bot, Home, DollarSign, MapPin, User, Phone, Loader2, Target } from 'lucide-react';
 import { Campaign, DriveFile, Contact, AppSettings, PropertyDossier } from '../types';
 import { storageService } from '../services/storageService';
@@ -10,9 +10,10 @@ import { useNavigate } from 'react-router-dom';
 interface CampaignBuilderProps {
   settings: AppSettings;
   onCampaignCreated: (campaign: Campaign) => void;
+  userId: string;
 }
 
-const CampaignBuilder: React.FC<CampaignBuilderProps> = ({ settings, onCampaignCreated }) => {
+const CampaignBuilder: React.FC<CampaignBuilderProps> = ({ settings, onCampaignCreated, userId }) => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   
@@ -41,9 +42,17 @@ const CampaignBuilder: React.FC<CampaignBuilderProps> = ({ settings, onCampaignC
   const csvInputRef = useRef<HTMLInputElement>(null);
   
   // CARREGA CONTATOS DO STORAGE
-  const [contactsList, setContactsList] = useState<Contact[]>(() => storageService.getContacts());
+  const [contactsList, setContactsList] = useState<Contact[]>([]);
   const [isLoadingContacts, setIsLoadingContacts] = useState(false);
   const [isParsingCsv, setIsParsingCsv] = useState(false);
+
+  useEffect(() => {
+    const loadContacts = async () => {
+      const contacts = await storageService.getContacts(userId);
+      setContactsList(contacts);
+    };
+    loadContacts();
+  }, [userId]);
 
   const handleDossierChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setDossier({ ...dossier, [e.target.name]: e.target.value });
@@ -84,8 +93,9 @@ const CampaignBuilder: React.FC<CampaignBuilderProps> = ({ settings, onCampaignC
       
       if (realContacts.length > 0) {
         // SALVA NO STORAGE
-        storageService.saveContactsBulk(realContacts);
-        setContactsList(storageService.getContacts());
+        await storageService.saveContactsBulk(userId, realContacts);
+        const updatedContacts = await storageService.getContacts(userId);
+        setContactsList(updatedContacts);
       } else {
         alert("A API conectou, mas retornou 0 contatos.");
       }
@@ -121,8 +131,9 @@ const CampaignBuilder: React.FC<CampaignBuilderProps> = ({ settings, onCampaignC
 
         if (newContacts.length > 0) {
           // SALVA NO STORAGE
-          storageService.saveContactsBulk(newContacts);
-          setContactsList(storageService.getContacts());
+          await storageService.saveContactsBulk(userId, newContacts);
+          const updatedContacts = await storageService.getContacts(userId);
+          setContactsList(updatedContacts);
           
           const newIds = new Set(selectedContacts);
           newContacts.forEach(c => newIds.add(c.id));

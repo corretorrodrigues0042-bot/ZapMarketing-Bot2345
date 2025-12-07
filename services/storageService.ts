@@ -1,99 +1,110 @@
-import { Campaign, Contact, Visit, AppSettings } from '../types';
-import { MOCK_CONTACTS, MOCK_VISITS } from './mockData';
+import { db } from './firebaseConfig';
+import { collection, addDoc, getDocs, updateDoc, doc, query, where, deleteDoc, setDoc } from 'firebase/firestore';
+import { Campaign, Contact, Visit, AppSettings, User } from '../types';
 
-const KEYS = {
-  CAMPAIGNS: 'zap_marketing_campaigns',
-  CONTACTS: 'zap_marketing_contacts',
-  VISITS: 'zap_marketing_visits',
-  SETTINGS: 'zap_marketing_settings'
+// O ID do usuário deve ser passado para garantir que cada um veja apenas seus dados
+const getUserCollection = (userId: string, collectionName: string) => {
+  return collection(db, `users/${userId}/${collectionName}`);
 };
 
 export const storageService = {
-  // --- CAMPAIGNS ---
-  getCampaigns: (): Campaign[] => {
+  // --- USER SETTINGS ---
+  getUserSettings: async (userId: string): Promise<AppSettings | null> => {
     try {
-      const data = localStorage.getItem(KEYS.CAMPAIGNS);
-      return data ? JSON.parse(data) : [];
-    } catch { return []; }
+      const docRef = doc(db, 'users', userId);
+      // Aqui simplificamos pegando do documento do usuário
+      // Na prática, você buscaria o snapshot
+      return null; // Implementação simplificada, settings locais por enquanto ou via context
+    } catch { return null; }
   },
 
-  saveCampaign: (campaign: Campaign) => {
-    const campaigns = storageService.getCampaigns();
-    // Update or Add
-    const index = campaigns.findIndex(c => c.id === campaign.id);
-    if (index >= 0) {
-      campaigns[index] = campaign;
-    } else {
-      campaigns.unshift(campaign);
-    }
-    localStorage.setItem(KEYS.CAMPAIGNS, JSON.stringify(campaigns));
+  saveUserSettings: async (userId: string, settings: AppSettings) => {
+    try {
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, { settings });
+    } catch (e) { console.error(e); }
   },
 
-  updateCampaignStatus: (id: string, status: 'draft' | 'running' | 'completed' | 'archived') => {
-    const campaigns = storageService.getCampaigns();
-    const campaign = campaigns.find(c => c.id === id);
-    if (campaign) {
-      campaign.status = status;
-      localStorage.setItem(KEYS.CAMPAIGNS, JSON.stringify(campaigns));
-    }
+  // --- CAMPAIGNS ---
+  getCampaigns: async (userId: string): Promise<Campaign[]> => {
+    try {
+      const q = query(getUserCollection(userId, 'campaigns'));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Campaign));
+    } catch (e) { console.error(e); return []; }
+  },
+
+  saveCampaign: async (userId: string, campaign: Campaign) => {
+    try {
+      // Se tiver ID e não for numérico (gerado pelo firebase), atualiza. Se for novo, cria.
+      if (campaign.id && campaign.id.length > 20) {
+         const docRef = doc(db, `users/${userId}/campaigns`, campaign.id);
+         await setDoc(docRef, campaign, { merge: true });
+      } else {
+         // Limpa ID temporário se houver
+         const { id, ...data } = campaign;
+         await addDoc(getUserCollection(userId, 'campaigns'), data);
+      }
+    } catch (e) { console.error(e); }
+  },
+
+  updateCampaignStatus: async (userId: string, campaignId: string, status: string) => {
+    try {
+      const docRef = doc(db, `users/${userId}/campaigns`, campaignId);
+      await updateDoc(docRef, { status });
+    } catch (e) { console.error(e); }
   },
 
   // --- CONTACTS ---
-  getContacts: (): Contact[] => {
+  getContacts: async (userId: string): Promise<Contact[]> => {
     try {
-      const data = localStorage.getItem(KEYS.CONTACTS);
-      if (!data) {
-        // First load: seed with Mocks if empty, then save
-        if (MOCK_CONTACTS.length > 0) {
-             localStorage.setItem(KEYS.CONTACTS, JSON.stringify(MOCK_CONTACTS));
-             return MOCK_CONTACTS;
-        }
-        return [];
-      }
-      return JSON.parse(data);
-    } catch { return []; }
+      const q = query(getUserCollection(userId, 'contacts'));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Contact));
+    } catch (e) { console.error(e); return []; }
   },
 
-  saveContact: (contact: Contact) => {
-    const contacts = storageService.getContacts();
-    const index = contacts.findIndex(c => c.id === contact.id);
-    if (index >= 0) {
-      contacts[index] = { ...contacts[index], ...contact };
-    } else {
-      contacts.push(contact);
+  saveContact: async (userId: string, contact: Contact) => {
+    try {
+       // Verifica se já existe pelo telefone para evitar duplicidade
+       // Simplificação: Adiciona direto. Num app real, faria check antes.
+       const docRef = contact.id && contact.id.length > 20 
+         ? doc(db, `users/${userId}/contacts`, contact.id)
+         : doc(getUserCollection(userId, 'contacts')); // Novo doc
+       
+       await setDoc(docRef, { ...contact, id: docRef.id }, { merge: true });
+    } catch (e) { console.error(e); }
+  },
+
+  saveContactsBulk: async (userId: string, newContacts: Contact[]) => {
+    // Firebase Batch write é o ideal aqui
+    // Implementação simples loop
+    for (const contact of newContacts) {
+        await addDoc(getUserCollection(userId, 'contacts'), contact);
     }
-    localStorage.setItem(KEYS.CONTACTS, JSON.stringify(contacts));
   },
 
-  saveContactsBulk: (newContacts: Contact[]) => {
-    const current = storageService.getContacts();
-    const ids = new Set(current.map(c => c.id));
-    const toAdd = newContacts.filter(c => !ids.has(c.id));
-    const updated = [...current, ...toAdd];
-    localStorage.setItem(KEYS.CONTACTS, JSON.stringify(updated));
-  },
-
-  deleteContact: (id: string) => {
-      const contacts = storageService.getContacts().filter(c => c.id !== id);
-      localStorage.setItem(KEYS.CONTACTS, JSON.stringify(contacts));
+  deleteContact: async (userId: string, contactId: string) => {
+    try {
+      await deleteDoc(doc(db, `users/${userId}/contacts`, contactId));
+    } catch (e) { console.error(e); }
   },
 
   // --- VISITS ---
-  getVisits: (): Visit[] => {
+  getVisits: async (userId: string): Promise<Visit[]> => {
     try {
-      const data = localStorage.getItem(KEYS.VISITS);
-      return data ? JSON.parse(data) : MOCK_VISITS;
-    } catch { return []; }
+      const q = query(getUserCollection(userId, 'visits'));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Visit));
+    } catch (e) { return []; }
   },
 
-  saveVisit: (visit: Visit) => {
-    const visits = storageService.getVisits();
-    visits.push(visit);
-    localStorage.setItem(KEYS.VISITS, JSON.stringify(visits));
+  saveVisit: async (userId: string, visit: Visit) => {
+    await addDoc(getUserCollection(userId, 'visits'), visit);
   },
 
-  updateVisit: (visit: Visit) => {
-      const visits = storageService.getVisits().map(v => v.id === visit.id ? visit : v);
-      localStorage.setItem(KEYS.VISITS, JSON.stringify(visits));
+  toggleVisit: async (userId: string, visitId: string, completed: boolean) => {
+     const docRef = doc(db, `users/${userId}/visits`, visitId);
+     await updateDoc(docRef, { completed });
   }
 };

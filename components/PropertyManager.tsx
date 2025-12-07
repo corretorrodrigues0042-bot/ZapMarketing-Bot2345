@@ -7,19 +7,22 @@ import { storageService } from '../services/storageService';
 
 interface PropertyManagerProps {
     settings: AppSettings;
-    // Removido props campaigns para ler do storage
+    userId: string;
 }
 
-const PropertyManager: React.FC<PropertyManagerProps> = ({ settings }) => {
+const PropertyManager: React.FC<PropertyManagerProps> = ({ settings, userId }) => {
     const [properties, setProperties] = useState<Campaign[]>([]);
     const [checkingId, setCheckingId] = useState<string | null>(null);
     const [results, setResults] = useState<Record<string, string>>({});
 
     useEffect(() => {
         // Carrega campanhas com dossiê (imóveis)
-        const allCampaigns = storageService.getCampaigns();
-        setProperties(allCampaigns.filter(c => c.dossier));
-    }, [checkingId]); // Recarrega se houver alteração
+        const loadProperties = async () => {
+             const allCampaigns = await storageService.getCampaigns(userId);
+             setProperties(allCampaigns.filter(c => c.dossier));
+        };
+        loadProperties();
+    }, [userId, checkingId]); // Recarrega se houver alteração
 
     const handleCheckOwner = async (campaign: Campaign) => {
         if (!campaign.dossier) return;
@@ -48,7 +51,7 @@ const PropertyManager: React.FC<PropertyManagerProps> = ({ settings }) => {
                 
                 if (analysis.status === 'SOLD') {
                     setResults(prev => ({ ...prev, [campaign.id]: `VENDIDO - Arquivando...` }));
-                    storageService.updateCampaignStatus(campaign.id, 'archived');
+                    await storageService.updateCampaignStatus(userId, campaign.id, 'archived');
                 } else {
                     setResults(prev => ({ ...prev, [campaign.id]: `CONFIRMADO - Ativo` }));
                 }
