@@ -45,13 +45,24 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
 
     try {
       if (isLogin) {
-        // LOGIN FIREBASE
+        // --- LOGIN FIREBASE ---
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const uid = userCredential.user.uid;
         
         const docRef = doc(db!, 'users', uid);
         const docSnap = await getDoc(docRef);
-        const userData = docSnap.exists() ? docSnap.data() : {};
+        
+        // Se o usuário existe no Auth mas não no Firestore (erro raro), cria agora
+        let userData = docSnap.exists() ? docSnap.data() : null;
+        if (!userData) {
+            userData = {
+                name: userCredential.user.displayName || 'Usuário',
+                email: userCredential.user.email,
+                plan: 'free',
+                createdAt: new Date().toISOString()
+            };
+            await setDoc(docRef, userData);
+        }
 
         onLogin({
           uid: uid,
@@ -62,16 +73,17 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         });
 
       } else {
-        // CADASTRO FIREBASE
+        // --- CADASTRO FIREBASE (NOVA CONTA) ---
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
         
         await updateProfile(user, { displayName: name });
 
+        // CRÍTICO: Salva no Firestore para o Admin poder ver e aprovar
         await setDoc(doc(db!, 'users', user.uid), {
           name: name,
           email: email,
-          plan: 'free',
+          plan: 'free', // Começa sempre como Grátis
           createdAt: new Date().toISOString()
         });
 
@@ -231,7 +243,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
                   <>
-                    {!isFirebaseConfigured ? 'Entrar no Modo Offline' : (isLogin ? 'Entrar' : 'Começar Grátis')}
+                    {!isFirebaseConfigured ? 'Entrar no Modo Offline' : (isLogin ? 'Entrar' : 'Criar Conta Grátis')}
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}

@@ -1,50 +1,45 @@
-# ZapMarketing Bot AI 🤖 (Enterprise Edition)
+# ZapMarketing Bot AI 🤖 (SaaS Edition)
 
-Plataforma SaaS de Automação de Marketing Imobiliário, pronta para escalar.
-Este sistema integra WhatsApp (Green API), Inteligência Artificial (Gemini) e Nuvem (OneDrive) em uma interface moderna.
+Plataforma SaaS completa integrada com GitHub, Netlify e Firebase.
 
-## 🚀 Funcionalidades Premium
-
-1. **Disparos em Massa**: Envio ilimitado (dependendo da API) com anexos.
-2. **IA Treinável**: O bot negocia visitas usando técnicas de SPIN Selling e Gatilhos Mentais.
-3. **Minerador de Leads (OSINT)**: Encontra clientes reais em grupos e comentários do Facebook.
-4. **CRM Kanban**: Gestão visual de pipeline de vendas.
-5. **Gestão de Portfólio**: IA checa automaticamente com proprietários se o imóvel ainda está disponível.
-
----
-
-## ☁️ Como Colocar no Ar (Deploy)
-
-### Opção 1: Netlify (Mais Fácil)
-1. Crie uma conta no [Netlify](https://www.netlify.com).
-2. Arraste a pasta `dist` (gerada após o comando de build) para o painel do Netlify.
-   *Ou conecte seu GitHub para deploy automático.*
-3. **Importante**: O arquivo `_redirects` na pasta public garante que as rotas funcionem.
-
-### Opção 2: Firebase Hosting (Google)
-1. Instale o Firebase CLI: `npm install -g firebase-tools`
-2. Login: `firebase login`
-3. Inicialize: `firebase init` (Selecione Hosting -> Use existing project -> Pasta pública: `dist` -> Configure as SPA: `Yes`).
-4. Build e Deploy:
+## 🚀 Passo 1: GitHub (Código)
+1. Crie um repositório no GitHub (ex: `zapmarketing`).
+2. Suba estes arquivos para lá.
    ```bash
-   npm run build
-   firebase deploy
+   git init
+   git add .
+   git commit -m "Primeira versão"
+   git branch -M main
+   git remote add origin https://github.com/SEU_USUARIO/zapmarketing.git
+   git push -u origin main
    ```
 
----
+## 🔥 Passo 2: Firebase (Banco de Dados)
+1. Vá em [console.firebase.google.com](https://console.firebase.google.com).
+2. Crie um projeto novo.
+3. Adicione um app Web (`</>`) e copie as configurações (`apiKey`, `authDomain`, etc).
+4. Vá em **Authentication** e ative "Email/Password".
+5. Vá em **Firestore Database** e crie o banco (pode começar em modo de teste).
 
-## 💰 Instruções para Venda (SaaS)
+## 🌐 Passo 3: Netlify (Hospedagem Automática)
+1. Crie conta no [Netlify](https://www.netlify.com).
+2. Clique em **"Add new site"** -> **"Import an existing project"**.
+3. Escolha **GitHub** e selecione seu repositório `zapmarketing`.
+4. Em **Build settings**, deixe como está (`npm run build` e diretório `dist`).
+5. **O SEGREDO:** Clique em **"Environment variables"** (ou Show Advanced) e adicione as chaves do Firebase assim:
 
-Se você vai vender o acesso a este software:
+   | Key | Value (Pegue do Firebase) |
+   | --- | --- |
+   | `VITE_FIREBASE_API_KEY` | `AIzaSy...` |
+   | `VITE_FIREBASE_AUTH_DOMAIN` | `projeto.firebaseapp.com` |
+   | `VITE_FIREBASE_PROJECT_ID` | `projeto-id` |
+   | `VITE_FIREBASE_STORAGE_BUCKET` | `projeto.appspot.com` |
+   | `VITE_FIREBASE_MESSAGING_SENDER_ID` | `123456...` |
+   | `VITE_FIREBASE_APP_ID` | `1:123456...` |
 
-1. **Domínio Próprio**: Configure um domínio (ex: `app.suaagencia.com`) no painel da hospedagem.
-2. **OneDrive**: Se usar a integração com OneDrive, adicione o domínio final no Portal Azure em "Redirect URIs".
-3. **Cobrança**: O sistema atual usa chaves de API do próprio usuário (BYOK - Bring Your Own Key). Isso reduz seu custo de servidor a **ZERO**. Você cobra pela "Licença de Uso" do software.
+6. Clique em **Deploy Site**.
 
-## 💻 Comandos Úteis
-
-- **Rodar Localmente**: `npm run dev`
-- **Gerar Versão Final**: `npm run build` (Cria a pasta /dist pronta para upload)
-
----
-*Desenvolvido com React, Vite, TailwindCSS e Google Gemini.*
+## ✨ Como funciona a Integração?
+- Quando você muda código no seu PC, você faz `git push`.
+- O **GitHub** recebe o código.
+- O **Netlify** vê que o GitHub mudou, pega o código novo, injeta as chaves do **Firebase** e coloca o site no ar sozinho.

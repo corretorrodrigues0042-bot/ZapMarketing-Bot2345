@@ -2,7 +2,16 @@ import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { PropertyDossier, ChatMessage } from "../types";
 
 const getAiClient = (customKey?: string) => {
-  const key = customKey || process.env.API_KEY;
+  let envKey = '';
+  try {
+    // @ts-ignore
+    if (typeof process !== 'undefined' && process.env) {
+      // @ts-ignore
+      envKey = process.env.API_KEY;
+    }
+  } catch (e) {}
+
+  const key = customKey || envKey;
   if (!key) {
     return null;
   }
