@@ -3,42 +3,28 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 // --- CONFIGURAÇÃO INTELIGENTE ---
-// Garante acesso seguro ao import.meta.env para evitar erros em ambientes onde ele não existe
-const getEnv = (key: string) => {
-  try {
-    // @ts-ignore
-    if (typeof import.meta !== 'undefined' && import.meta.env) {
-      // @ts-ignore
-      return import.meta.env[key];
-    }
-  } catch (e) {
-    console.warn("Ambiente sem suporte a import.meta.env");
-  }
-  return undefined;
-};
+// O código agora busca as chaves nas Variáveis de Ambiente do Netlify/Vite.
+// Se não encontrar, tenta usar valores hardcoded (não recomendado para GitHub público).
 
-// Tenta pegar do ambiente ou usa valores placeholders
-const apiKey = getEnv("VITE_FIREBASE_API_KEY") || "SUA_API_KEY_AQUI";
-const authDomain = getEnv("VITE_FIREBASE_AUTH_DOMAIN") || "seu-projeto.firebaseapp.com";
-const projectId = getEnv("VITE_FIREBASE_PROJECT_ID") || "seu-projeto";
-const storageBucket = getEnv("VITE_FIREBASE_STORAGE_BUCKET") || "seu-projeto.appspot.com";
-const messagingSenderId = getEnv("VITE_FIREBASE_MESSAGING_SENDER_ID") || "123456789";
-const appId = getEnv("VITE_FIREBASE_APP_ID") || "1:123456789:web:abcdef";
+const getEnv = (key: string) => {
+  // @ts-ignore
+  return import.meta.env[key];
+}
 
 const firebaseConfig = {
-  apiKey,
-  authDomain,
-  projectId,
-  storageBucket,
-  messagingSenderId,
-  appId
+  apiKey: getEnv("VITE_FIREBASE_API_KEY") || "SUA_API_KEY_AQUI",
+  authDomain: getEnv("VITE_FIREBASE_AUTH_DOMAIN") || "seu-projeto.firebaseapp.com",
+  projectId: getEnv("VITE_FIREBASE_PROJECT_ID") || "seu-projeto",
+  storageBucket: getEnv("VITE_FIREBASE_STORAGE_BUCKET") || "seu-projeto.appspot.com",
+  messagingSenderId: getEnv("VITE_FIREBASE_MESSAGING_SENDER_ID") || "123456789",
+  appId: getEnv("VITE_FIREBASE_APP_ID") || "1:123456789:web:abcdef"
 };
 
-// Verifica se as chaves reais foram carregadas
+// Verifica se as chaves reais foram carregadas (ignora os placeholders)
 export const isFirebaseConfigured = 
-  apiKey && 
-  apiKey !== "SUA_API_KEY_AQUI" &&
-  !apiKey.includes("UNDEFINED");
+  firebaseConfig.apiKey && 
+  firebaseConfig.apiKey !== "SUA_API_KEY_AQUI" &&
+  !firebaseConfig.apiKey.includes("UNDEFINED");
 
 let app;
 let auth;
@@ -56,7 +42,7 @@ if (isFirebaseConfigured) {
     db = null;
   }
 } else {
-  console.log("⚠️ Firebase não configurado (Chaves ausentes). Rodando em MODO LOCAL (Offline).");
+  console.log("⚠️ Firebase não configurado. Rodando em MODO LOCAL (Offline).");
   auth = null;
   db = null;
 }
