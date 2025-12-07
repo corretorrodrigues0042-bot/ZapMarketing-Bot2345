@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Zap, Crown, Shield } from 'lucide-react';
+import { Check, Zap, Crown, Shield, Smartphone } from 'lucide-react';
 import { User } from '../types';
 
 interface SubscriptionProps {
@@ -7,17 +7,25 @@ interface SubscriptionProps {
 }
 
 const Subscription: React.FC<SubscriptionProps> = ({ user }) => {
-    // DICA PARA VENDA: Crie Links de Pagamento no Stripe e cole nas hrefs abaixo
-    const STRIPE_LINK_PRO = "https://buy.stripe.com/SEU_LINK_AQUI"; 
-    const STRIPE_LINK_ENTERPRISE = "https://buy.stripe.com/SEU_LINK_AQUI";
+    
+    // GERA O LINK DE WHATSAPP PARA O CLIENTE PAGAR VOCÊ
+    const getPaymentLink = (plan: string, price: string) => {
+        const text = `Olá! Tenho interesse em assinar o plano *${plan}* do ZapMarketing por R$ ${price}. Como faço o Pix?`;
+        return `https://wa.me/5511999999999?text=${encodeURIComponent(text)}`; // <--- TROQUE PELO SEU NÚMERO
+    };
 
     return (
         <div className="max-w-6xl mx-auto py-12 px-4">
             <div className="text-center mb-16">
                 <h2 className="text-4xl font-bold text-slate-900 mb-4">Escolha seu Plano</h2>
                 <p className="text-xl text-slate-500 max-w-2xl mx-auto">
-                    Potencialize suas vendas com automação e inteligência artificial. Cancele quando quiser.
+                    Potencialize suas vendas com automação e inteligência artificial. Ativação imediata via Pix.
                 </p>
+                {user.plan !== 'free' && (
+                    <div className="mt-4 bg-green-100 text-green-700 px-4 py-2 rounded-lg inline-block font-bold">
+                        Você é assinante {user.plan.toUpperCase()}! 🚀
+                    </div>
+                )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -34,8 +42,8 @@ const Subscription: React.FC<SubscriptionProps> = ({ user }) => {
                         <li className="flex gap-3 text-slate-600 text-sm"><Check className="w-5 h-5 text-green-500" /> CRM Básico</li>
                         <li className="flex gap-3 text-slate-400 text-sm line-through"><Shield className="w-5 h-5" /> Sem IA Avançada</li>
                     </ul>
-                    <button className="w-full py-3 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50 cursor-default">
-                        Plano Atual
+                    <button disabled className="w-full py-3 rounded-xl border border-slate-200 font-bold text-slate-600 bg-slate-50 cursor-default">
+                        {user.plan === 'free' ? 'Seu Plano Atual' : 'Disponível'}
                     </button>
                 </div>
 
@@ -58,14 +66,19 @@ const Subscription: React.FC<SubscriptionProps> = ({ user }) => {
                         <li className="flex gap-3 text-slate-300 text-sm"><Check className="w-5 h-5 text-blue-400" /> Mineração de Leads (OSINT)</li>
                         <li className="flex gap-3 text-slate-300 text-sm"><Check className="w-5 h-5 text-blue-400" /> Suporte Prioritário</li>
                     </ul>
-                    <a 
-                        href={STRIPE_LINK_PRO} 
-                        target="_blank"
-                        rel="noreferrer"
-                        className="w-full py-4 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-500 transition-all text-center shadow-lg shadow-blue-900/50 block"
-                    >
-                        Assinar Agora
-                    </a>
+                    
+                    {user.plan === 'pro' ? (
+                        <button disabled className="w-full py-4 rounded-xl bg-green-600 text-white font-bold cursor-default">Plano Ativo</button>
+                    ) : (
+                        <a 
+                            href={getPaymentLink('Profissional', '97,00')} 
+                            target="_blank"
+                            rel="noreferrer"
+                            className="w-full py-4 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-500 transition-all text-center shadow-lg shadow-blue-900/50 flex items-center justify-center gap-2"
+                        >
+                            <Smartphone className="w-5 h-5" /> Assinar via Pix
+                        </a>
+                    )}
                 </div>
 
                 {/* Enterprise Plan */}
@@ -84,12 +97,12 @@ const Subscription: React.FC<SubscriptionProps> = ({ user }) => {
                         <li className="flex gap-3 text-slate-600 text-sm"><Check className="w-5 h-5 text-purple-500" /> Treinamento Personalizado</li>
                     </ul>
                     <a 
-                        href={STRIPE_LINK_ENTERPRISE}
+                        href={getPaymentLink('Enterprise', '297,00')}
                         target="_blank"
                         rel="noreferrer"
-                        className="w-full py-3 rounded-xl border border-slate-300 font-bold text-slate-700 hover:bg-slate-50 transition-all text-center block"
+                        className="w-full py-3 rounded-xl border border-slate-300 font-bold text-slate-700 hover:bg-slate-50 transition-all text-center flex items-center justify-center gap-2"
                     >
-                        Falar com Consultor
+                        <Smartphone className="w-4 h-4" /> Falar com Consultor
                     </a>
                 </div>
             </div>

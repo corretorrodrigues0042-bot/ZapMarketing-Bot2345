@@ -73,6 +73,7 @@ export interface User {
   plan: 'free' | 'pro' | 'enterprise';
   isAuthenticated: boolean;
   companyName?: string;
+  isAdmin?: boolean; // NOVO: Permite acesso ao painel de controle
 }
 
 export interface Lead {

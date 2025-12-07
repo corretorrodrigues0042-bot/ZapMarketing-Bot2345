@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { Search, MessageSquare, Building2, Users, UserPlus, Loader2, ExternalLink, ShieldAlert, Database } from 'lucide-react';
+import { Search, MessageSquare, Building2, Users, UserPlus, Loader2, ExternalLink, ShieldAlert, Database, Lock } from 'lucide-react';
 import { mineLeadsWithAI, generateOsintDorks } from '../services/geminiService';
-import { AppSettings, Lead, Contact } from '../types';
+import { AppSettings, Lead, Contact, User } from '../types';
 import { storageService } from '../services/storageService';
+import { NavLink } from 'react-router-dom';
 
 interface LeadMinerProps {
   settings: AppSettings;
-  userId: string;
+  user: User;
 }
 
-const LeadMiner: React.FC<LeadMinerProps> = ({ settings, userId }) => {
+const LeadMiner: React.FC<LeadMinerProps> = ({ settings, user }) => {
   const [niche, setNiche] = useState('');
   const [city, setCity] = useState('');
   const [strategy, setStrategy] = useState<'business' | 'comments' | 'groups'>('comments');
@@ -17,6 +18,33 @@ const LeadMiner: React.FC<LeadMinerProps> = ({ settings, userId }) => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [importedIds, setImportedIds] = useState<Set<string>>(new Set());
   const [dorks, setDorks] = useState<{label: string, url: string, desc: string}[]>([]);
+
+  // PAYWALL BLOCK
+  if (user.plan === 'free') {
+      return (
+          <div className="max-w-4xl mx-auto py-12 text-center">
+              <div className="bg-white rounded-2xl shadow-xl p-12 border border-slate-200 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 to-purple-600" />
+                  
+                  <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <Lock className="w-10 h-10 text-slate-400" />
+                  </div>
+                  
+                  <h2 className="text-3xl font-bold text-slate-900 mb-4">Funcionalidade Premium</h2>
+                  <p className="text-lg text-slate-500 max-w-lg mx-auto mb-8">
+                      A mineração de leads com Inteligência Artificial (OSINT) é exclusiva para assinantes PRO.
+                      Encontre clientes reais no Facebook e Instagram automaticamente.
+                  </p>
+
+                  <NavLink to="/subscription" className="inline-flex items-center gap-2 px-8 py-4 bg-blue-600 text-white rounded-xl font-bold text-lg hover:bg-blue-700 transition-all shadow-lg shadow-blue-900/20 transform hover:-translate-y-1">
+                      Desbloquear Agora
+                  </NavLink>
+                  
+                  <p className="text-xs text-slate-400 mt-6">A partir de R$ 97/mês</p>
+              </div>
+          </div>
+      );
+  }
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,7 +83,7 @@ const LeadMiner: React.FC<LeadMinerProps> = ({ settings, userId }) => {
     };
     
     // PERSISTÊNCIA AUTOMÁTICA
-    storageService.saveContact(userId, newContact);
+    storageService.saveContact(user.uid, newContact);
     
     setImportedIds(prev => new Set(prev).add(lead.id));
   };

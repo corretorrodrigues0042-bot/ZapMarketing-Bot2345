@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Send, Settings as SettingsIcon, Calendar, Bot, Menu, X, LogOut, Crown, BarChart3, Search, Trello, BrainCircuit, Home, ArrowRight, AlertTriangle, Activity, CreditCard } from 'lucide-react';
+import { LayoutDashboard, Send, Settings as SettingsIcon, Calendar, Bot, Menu, X, LogOut, Crown, BarChart3, Search, Trello, BrainCircuit, Home, ArrowRight, AlertTriangle, Activity, CreditCard, Shield } from 'lucide-react';
 import CampaignBuilder from './components/CampaignBuilder';
 import Settings from './components/Settings';
 import VisitScheduler from './components/VisitScheduler';
@@ -10,9 +10,10 @@ import BotTrainer from './components/BotTrainer';
 import PropertyManager from './components/PropertyManager';
 import Subscription from './components/Subscription';
 import Auth from './components/Auth';
+import AdminPanel from './components/AdminPanel';
 import { AppSettings, Campaign, User } from './types';
 import { storageService } from './services/storageService';
-import { auth } from './services/firebaseConfig';
+import { auth, isFirebaseConfigured } from './services/firebaseConfig';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 
 interface DashboardProps {
@@ -25,7 +26,6 @@ const Dashboard: React.FC<DashboardProps> = ({ settings, userId }) => {
   const [totalVisits, setTotalVisits] = useState(0);
 
   useEffect(() => {
-    // Carregamento Assíncrono do Firebase
     const loadData = async () => {
       const camps = await storageService.getCampaigns(userId);
       const visits = await storageService.getVisits(userId);
@@ -141,6 +141,7 @@ const App = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
   
+  // Carrega configurações iniciais
   const [settings, setSettings] = useState<AppSettings>(() => {
     const saved = localStorage.getItem('zap_marketing_settings');
     return saved ? JSON.parse(saved) : {
@@ -155,24 +156,32 @@ const App = () => {
     };
   });
 
-  // FIREBASE AUTH LISTENER
+  // Listener de Autenticação
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      if (firebaseUser) {
-        // Em um app real, buscaríamos dados extras do Firestore aqui
-        setUser({
-           uid: firebaseUser.uid,
-           email: firebaseUser.email || '',
-           name: firebaseUser.displayName || 'Usuário',
-           plan: 'free', // Default, atualizado pelo Login Component
-           isAuthenticated: true
-        });
-      } else {
-        setUser(null);
-      }
+    if (isFirebaseConfigured && auth) {
+      const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        if (firebaseUser) {
+          // Busca o plano atualizado do banco
+          const userList = await storageService.getAllUsers();
+          const me = userList.find(u => u.uid === firebaseUser.uid);
+          
+          setUser({
+             uid: firebaseUser.uid,
+             email: firebaseUser.email || '',
+             name: firebaseUser.displayName || 'Usuário',
+             plan: me?.plan || 'free',
+             isAuthenticated: true,
+             isAdmin: firebaseUser.email === 'admin@zapmarketing.com' || me?.isAdmin
+          });
+        } else {
+          setUser(null);
+        }
+        setLoadingAuth(false);
+      });
+      return () => unsubscribe();
+    } else {
       setLoadingAuth(false);
-    });
-    return () => unsubscribe();
+    }
   }, []);
 
   const handleSaveSettings = (newSettings: AppSettings) => {
@@ -186,12 +195,14 @@ const App = () => {
   const handleCampaignCreated = async (campaign: Campaign) => {
     if (user?.uid) {
         await storageService.saveCampaign(user.uid, campaign);
-        alert("Campanha salva na nuvem com sucesso!");
+        alert("Campanha salva com sucesso!");
     }
   };
 
   const handleLogout = async () => {
-    await signOut(auth);
+    if (isFirebaseConfigured && auth) {
+        await signOut(auth);
+    }
     setUser(null);
     setMobileMenuOpen(false);
   };
@@ -248,8 +259,17 @@ const App = () => {
               <div>
                 <h1 className="font-bold text-slate-900 leading-tight text-lg">ZapMarketing</h1>
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="w-2 h-2 rounded-full bg-green-500 status-dot"></span>
-                  <p className="text-xs text-green-600 font-bold uppercase tracking-wider">Sistema Online</p>
+                  {!isFirebaseConfigured ? (
+                    <>
+                      <span className="w-2 h-2 rounded-full bg-yellow-500 status-dot"></span>
+                      <p className="text-xs text-yellow-600 font-bold uppercase tracking-wider">Modo Offline</p>
+                    </>
+                  ) : (
+                    <>
+                      <span className="w-2 h-2 rounded-full bg-green-500 status-dot"></span>
+                      <p className="text-xs text-green-600 font-bold uppercase tracking-wider">Sistema Online</p>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -268,6 +288,15 @@ const App = () => {
               <p className="px-4 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 mt-6">Sistema</p>
               <NavItem to="/subscription" icon={CreditCard} label="Meu Plano" />
               <NavItem to="/settings" icon={SettingsIcon} label="Configurações API" />
+              
+              {/* BOTÃO SECRETO DE ADMIN */}
+              {(user.isAdmin || !isFirebaseConfigured) && (
+                <div className="mt-8 pt-8 border-t border-slate-100 px-4">
+                    <NavLink to="/admin" className="flex items-center gap-3 text-slate-400 hover:text-slate-800 text-xs font-bold uppercase tracking-wider">
+                        <Shield className="w-4 h-4" /> Acesso Admin
+                    </NavLink>
+                </div>
+              )}
             </nav>
           </div>
 
@@ -310,7 +339,7 @@ const App = () => {
                 userId={user.uid}
               />
             } />
-            <Route path="/leads" element={<LeadMiner settings={settings} userId={user.uid} />} />
+            <Route path="/leads" element={<LeadMiner settings={settings} user={user} />} />
             <Route path="/pipeline" element={<PipelineCRM />} />
             <Route path="/properties" element={<PropertyManager settings={settings} userId={user.uid} />} />
             <Route path="/trainer" element={<BotTrainer settings={settings} />} />
@@ -322,6 +351,7 @@ const App = () => {
                 onSave={handleSaveSettings} 
               />
             } />
+            <Route path="/admin" element={<AdminPanel />} />
           </Routes>
         </main>
       </div>

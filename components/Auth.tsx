@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Bot, Lock, ArrowRight, Loader2, Sparkles, ShieldCheck, Mail } from 'lucide-react';
+import { Bot, Lock, ArrowRight, Loader2, Sparkles, ShieldCheck, Mail, Database, HardDrive } from 'lucide-react';
 import { User } from '../types';
-import { auth, db } from '../services/firebaseConfig';
+import { auth, db, isFirebaseConfigured } from '../services/firebaseConfig';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 
@@ -17,19 +17,39 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // LOGIN MODO LOCAL / DEMO (Sem Firebase)
+  const handleLocalLogin = () => {
+    setIsLoading(true);
+    setTimeout(() => {
+        onLogin({
+            uid: 'local-user-admin',
+            email: 'admin@local.com',
+            name: 'Administrador (Local)',
+            plan: 'pro', // No modo local liberamos o PRO para teste
+            isAuthenticated: true
+        });
+        setIsLoading(false);
+    }, 1000);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
+    // Se Firebase NÃO estiver configurado, simula login local
+    if (!isFirebaseConfigured || !auth) {
+        handleLocalLogin();
+        return;
+    }
+
     try {
       if (isLogin) {
-        // LOGIN
+        // LOGIN FIREBASE
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const uid = userCredential.user.uid;
         
-        // Buscar dados extras do Firestore (Plano, etc)
-        const docRef = doc(db, 'users', uid);
+        const docRef = doc(db!, 'users', uid);
         const docSnap = await getDoc(docRef);
         const userData = docSnap.exists() ? docSnap.data() : {};
 
@@ -42,18 +62,16 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         });
 
       } else {
-        // CADASTRO
+        // CADASTRO FIREBASE
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
         
-        // Atualizar Profile
         await updateProfile(user, { displayName: name });
 
-        // Criar documento no Firestore
-        await setDoc(doc(db, 'users', user.uid), {
+        await setDoc(doc(db!, 'users', user.uid), {
           name: name,
           email: email,
-          plan: 'free', // Começa no Free
+          plan: 'free',
           createdAt: new Date().toISOString()
         });
 
@@ -108,8 +126,17 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                     <span>IA Generativa (Gemini)</span>
                 </div>
                 <div className="flex items-center gap-3 text-sm text-slate-300">
-                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                    <span>Dados Criptografados</span>
+                    {!isFirebaseConfigured ? (
+                        <div className="flex items-center gap-2 text-emerald-400">
+                            <HardDrive className="w-4 h-4" />
+                            <span>Modo Offline (Grátis)</span>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-2 text-emerald-400">
+                            <Database className="w-4 h-4" />
+                            <span>Banco de Dados Online</span>
+                        </div>
+                    )}
                 </div>
             </div>
           </div>
@@ -120,58 +147,74 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
           <div className="max-w-sm mx-auto w-full">
             <div className="mb-8">
               <h2 className="text-2xl font-bold text-slate-900">
-                {isLogin ? 'Acessar Painel' : 'Criar Nova Conta'}
+                {!isFirebaseConfigured ? 'Acesso Local' : (isLogin ? 'Acessar Painel' : 'Criar Nova Conta')}
               </h2>
               <p className="text-slate-500 text-sm mt-1">
-                {isLogin ? 'Entre para gerenciar suas campanhas.' : 'Teste grátis por 7 dias. Não precisa de cartão.'}
+                {!isFirebaseConfigured 
+                    ? 'O Firebase não está configurado. Usaremos armazenamento local.' 
+                    : (isLogin ? 'Entre para gerenciar suas campanhas.' : 'Teste grátis. Não precisa de cartão.')}
               </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               
-              {!isLogin && (
-                <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Nome Completo</label>
-                    <input 
-                    type="text" 
-                    required
-                    value={name}
-                    onChange={e => setName(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-900 outline-none"
-                    placeholder="Seu nome"
-                    />
-                </div>
-              )}
+              {!isFirebaseConfigured ? (
+                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                    <p className="text-sm text-yellow-800 font-medium mb-2">
+                        ⚠️ Modo Demonstração
+                    </p>
+                    <p className="text-xs text-yellow-700">
+                        Como você não configurou as chaves do Firebase, o app vai rodar direto no navegador. 
+                        Seus dados ficarão salvos apenas neste computador.
+                    </p>
+                 </div>
+              ) : (
+                  <>
+                    {!isLogin && (
+                        <div className="space-y-1">
+                            <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Nome Completo</label>
+                            <input 
+                            type="text" 
+                            required
+                            value={name}
+                            onChange={e => setName(e.target.value)}
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-900 outline-none"
+                            placeholder="Seu nome"
+                            />
+                        </div>
+                    )}
 
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Email</label>
-                <div className="relative">
-                    <Mail className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
-                    <input 
-                    type="email" 
-                    required
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-900 outline-none"
-                    placeholder="nome@empresa.com"
-                    />
-                </div>
-              </div>
-              
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Senha</label>
-                <div className="relative">
-                    <Lock className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
-                    <input 
-                    type="password" 
-                    required
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-900 outline-none"
-                    placeholder="••••••••"
-                    />
-                </div>
-              </div>
+                    <div className="space-y-1">
+                        <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Email</label>
+                        <div className="relative">
+                            <Mail className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
+                            <input 
+                            type="email" 
+                            required
+                            value={email}
+                            onChange={e => setEmail(e.target.value)}
+                            className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-900 outline-none"
+                            placeholder="nome@empresa.com"
+                            />
+                        </div>
+                    </div>
+                    
+                    <div className="space-y-1">
+                        <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Senha</label>
+                        <div className="relative">
+                            <Lock className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
+                            <input 
+                            type="password" 
+                            required
+                            value={password}
+                            onChange={e => setPassword(e.target.value)}
+                            className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-900 outline-none"
+                            placeholder="••••••••"
+                            />
+                        </div>
+                    </div>
+                  </>
+              )}
 
               {error && (
                 <div className="p-3 bg-red-50 text-red-600 text-xs font-medium rounded-lg border border-red-100 flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
@@ -188,21 +231,23 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
                   <>
-                    {isLogin ? 'Entrar' : 'Começar Grátis'}
+                    {!isFirebaseConfigured ? 'Entrar no Modo Offline' : (isLogin ? 'Entrar' : 'Começar Grátis')}
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
               </button>
             </form>
 
-            <div className="mt-8 text-center border-t border-slate-100 pt-6">
-              <button 
-                onClick={() => setIsLogin(!isLogin)}
-                className="text-sm text-blue-600 font-bold hover:text-blue-800 transition-colors"
-              >
-                {isLogin ? 'Não possui acesso? Crie sua conta grátis' : 'Já tem conta? Fazer login'}
-              </button>
-            </div>
+            {isFirebaseConfigured && (
+                <div className="mt-8 text-center border-t border-slate-100 pt-6">
+                <button 
+                    onClick={() => setIsLogin(!isLogin)}
+                    className="text-sm text-blue-600 font-bold hover:text-blue-800 transition-colors"
+                >
+                    {isLogin ? 'Não possui acesso? Crie sua conta grátis' : 'Já tem conta? Fazer login'}
+                </button>
+                </div>
+            )}
           </div>
         </div>
       </div>
