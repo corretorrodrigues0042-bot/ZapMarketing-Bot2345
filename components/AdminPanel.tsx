@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ShieldCheck, Search, Check, X, TrendingUp, Users, DollarSign, Activity } from 'lucide-react';
+import { ShieldCheck, Search, X, Users, DollarSign, Activity } from 'lucide-react';
 import { User } from '../types';
 import { storageService } from '../services/storageService';
 
@@ -27,7 +27,6 @@ const AdminPanel: React.FC = () => {
     if(!confirm(confirmMessage)) return;
     
     await storageService.updateUserPlan(userId, newPlan);
-    // Atualiza lista localmente para refletir a mudança instantaneamente
     setUsers(prev => prev.map(u => u.uid === userId ? { ...u, plan: newPlan } : u));
   };
 
@@ -36,7 +35,6 @@ const AdminPanel: React.FC = () => {
     u.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Cálculos de Receita Estimada (Apenas visualização)
   const totalUsers = users.length;
   const proUsers = users.filter(u => u.plan === 'pro').length;
   const enterpriseUsers = users.filter(u => u.plan === 'enterprise').length;
@@ -44,8 +42,6 @@ const AdminPanel: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-12">
-      
-      {/* Header Dashboard */}
       <div className="bg-slate-900 text-white p-8 rounded-2xl shadow-xl border border-slate-700">
         <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <div>
@@ -75,7 +71,6 @@ const AdminPanel: React.FC = () => {
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        {/* Toolbar */}
         <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row gap-4 justify-between items-center bg-slate-50/50">
            <div className="relative w-full md:w-96">
               <Search className="absolute left-3 top-3.5 w-5 h-5 text-slate-400" />
@@ -91,7 +86,6 @@ const AdminPanel: React.FC = () => {
            </button>
         </div>
 
-        {/* Table */}
         {isLoading ? (
             <div className="p-20 text-center">
                 <div className="animate-spin w-8 h-8 border-4 border-slate-200 border-t-slate-900 rounded-full mx-auto mb-4"></div>

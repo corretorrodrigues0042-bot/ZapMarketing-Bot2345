@@ -1,26 +1,43 @@
-import React from 'react';
-import { Check, Zap, Crown, Shield, Smartphone, ArrowRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { Check, Zap, Crown, Shield, Smartphone, ArrowRight, Key, Loader2, Star } from 'lucide-react';
 import { User } from '../types';
+import { authService } from '../services/authService';
 
 interface SubscriptionProps {
     user: User;
 }
 
 const Subscription: React.FC<SubscriptionProps> = ({ user }) => {
+    const [licenseKey, setLicenseKey] = useState('');
+    const [isActivating, setIsActivating] = useState(false);
     
-    // GERA O LINK DE WHATSAPP JÁ COM O EMAIL DO CLIENTE PARA FACILITAR A LIBERAÇÃO
+    // GERA O LINK DE WHATSAPP PARA VENDA
     const getPaymentLink = (plan: string, price: string) => {
-        const message = `Olá! Quero assinar o plano *${plan}* do ZapMarketing.\n\nMeu Email de cadastro é: *${user.email}*\nValor: R$ ${price}\n\nQual a chave Pix?`;
-        
-        // --- CONFIGURAÇÃO: COLOQUE SEU NÚMERO AQUI ---
+        const message = `Olá! Quero assinar o plano *${plan}* do ZapMarketing.\n\nMeu Email de cadastro é: *${user.email}*\nValor: R$ ${price}`;
         const seuNumeroWhatsApp = "5511999999999"; 
-        
         return `https://wa.me/${seuNumeroWhatsApp}?text=${encodeURIComponent(message)}`;
     };
 
+    const handleActivate = async () => {
+        if (!licenseKey) return alert("Digite a chave de licença.");
+        setIsActivating(true);
+        
+        const result = await authService.activateLicense(user.uid, licenseKey);
+        
+        setIsActivating(false);
+        if (result.success) {
+            alert(`Parabéns! Plano ${result.plan?.toUpperCase()} ativado com sucesso.`);
+            window.location.reload(); // Recarrega para atualizar permissões
+        } else {
+            alert("Chave inválida ou expirada. Verifique seu email da Hotmart.");
+        }
+    };
+
     return (
-        <div className="max-w-6xl mx-auto py-12 px-4">
-            <div className="text-center mb-16">
+        <div className="max-w-6xl mx-auto py-12 px-4 space-y-12">
+            
+            {/* Header */}
+            <div className="text-center">
                 <span className="bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-4 inline-block">
                     Planos & Preços
                 </span>
@@ -28,14 +45,43 @@ const Subscription: React.FC<SubscriptionProps> = ({ user }) => {
                 <p className="text-xl text-slate-500 max-w-2xl mx-auto">
                     Libere o potencial máximo da Inteligência Artificial para vender imóveis no automático.
                 </p>
+            </div>
+
+            {/* License Activation Area (Hotmart Style) */}
+            <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl border border-slate-700 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-12 opacity-5">
+                    <Key className="w-64 h-64 transform rotate-45" />
+                </div>
                 
-                <div className="mt-8 flex justify-center">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-lg text-slate-600 font-medium text-sm">
-                        <Shield className="w-4 h-4" /> Pagamento Seguro via Pix ou Cartão
-                    </div>
+                <div className="relative z-10">
+                    <h3 className="text-2xl font-bold flex items-center gap-2 mb-2">
+                        <Star className="w-6 h-6 text-yellow-400 fill-yellow-400" /> Já comprou na Hotmart/AppStore?
+                    </h3>
+                    <p className="text-slate-300">
+                        Insira a Chave de Licença que você recebeu no email para desbloquear o PRO instantaneamente.
+                    </p>
+                </div>
+
+                <div className="relative z-10 w-full md:w-auto flex flex-col sm:flex-row gap-3">
+                    <input 
+                        type="text" 
+                        value={licenseKey}
+                        onChange={e => setLicenseKey(e.target.value)}
+                        placeholder="Ex: PRO-1234-ABCD"
+                        className="px-4 py-3 rounded-xl text-slate-900 font-mono font-bold uppercase placeholder:normal-case outline-none focus:ring-2 focus:ring-blue-500 w-full md:w-64"
+                    />
+                    <button 
+                        onClick={handleActivate}
+                        disabled={isActivating}
+                        className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-900/50 flex items-center justify-center gap-2"
+                    >
+                        {isActivating ? <Loader2 className="animate-spin w-5 h-5" /> : <Key className="w-5 h-5" />}
+                        Ativar Agora
+                    </button>
                 </div>
             </div>
 
+            {/* Pricing Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
                 
                 {/* Free Plan */}
@@ -87,7 +133,7 @@ const Subscription: React.FC<SubscriptionProps> = ({ user }) => {
                             rel="noreferrer"
                             className="w-full py-4 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-500 transition-all text-center shadow-lg shadow-blue-900/50 flex items-center justify-center gap-2 group"
                         >
-                            <Smartphone className="w-5 h-5" /> Assinar Agora
+                            <Smartphone className="w-5 h-5" /> Comprar Licença
                             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </a>
                     )}
@@ -123,10 +169,6 @@ const Subscription: React.FC<SubscriptionProps> = ({ user }) => {
                         </a>
                     )}
                 </div>
-            </div>
-            
-            <div className="mt-12 text-center text-slate-400 text-sm">
-                Precisa de ajuda? <a href="#" className="underline hover:text-slate-600">Entre em contato com o suporte</a>.
             </div>
         </div>
     );

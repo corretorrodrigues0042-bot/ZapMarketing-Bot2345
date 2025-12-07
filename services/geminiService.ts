@@ -189,7 +189,7 @@ export const analyzeOwnerResponse = async (
   }
 };
 
-// ... (Mantenha as funções de parseContacts e mineLeadsWithAI e generateOsintDorks iguais ao anterior)
+// ... (Mantenha as funções de parseContacts)
 export const parseContactsFromRawText = async (rawText: string, apiKeyOverride?: string): Promise<{ name: string; phone: string }[]> => {
   const ai = getAiClient(apiKeyOverride);
   if (!ai) throw new Error("API Key required");
@@ -213,36 +213,46 @@ export const mineLeadsWithAI = async (
   niche: string, 
   city: string, 
   strategy: 'business' | 'comments' | 'groups',
+  platform: 'facebook' | 'instagram' | 'threads',
   apiKeyOverride?: string
 ): Promise<{ name: string; phone: string; source: string; description: string }[]> => {
   const ai = getAiClient(apiKeyOverride);
 
   if (!ai) {
      return [
-       { name: `Interessado ${niche}`, phone: "5511999999999", source: "Comentários Facebook", description: "Comentou 'quero saber mais' no post de venda" },
+       { name: `Lead ${niche} - Exemplo`, phone: "5511999999999", source: platform.charAt(0).toUpperCase() + platform.slice(1), description: "Simulação sem API Key configurada" },
      ];
   }
 
   let promptContext = "";
-  if (strategy === 'comments') {
+  
+  if (platform === 'instagram') {
     promptContext = `
-      Foco: Encontrar PESSOAS FÍSICAS que comentaram em posts de vendas de "${niche}" na cidade de "${city}".
-      Contexto: Pessoas perguntando "valor?", "ainda disponível?", "tenho interesse" e deixando o telefone nos comentários.
+      PLATAFORMA: INSTAGRAM
+      Foco: Perfis que tem "Link na Bio" ou "WhatsApp na Bio" relacionados a "${niche}" em "${city}".
+      Identifique influenciadores locais, profissionais liberais ou pessoas pedindo info nos comentários.
+      Formato do Source: @usuario_insta
     `;
-  } else if (strategy === 'groups') {
+  } else if (platform === 'threads') {
     promptContext = `
-      Foco: Encontrar membros ativos de grupos de "${niche}" na cidade de "${city}".
+      PLATAFORMA: THREADS (Meta)
+      Foco: Discussões ativas sobre "${niche}" em "${city}".
+      Pessoas engajadas em threads sobre o tema.
+      Formato do Source: @usuario_threads
     `;
   } else {
+    // Facebook
     promptContext = `
-      Foco: Encontrar empresas e negócios locais de "${niche}" na cidade de "${city}".
+      PLATAFORMA: FACEBOOK
+      Foco: Grupos e Comentários sobre "${niche}" em "${city}".
+      Pessoas que comentaram "tenho interesse", "valor" e deixaram telefone.
     `;
   }
 
   const prompt = `
     Aja como um minerador de dados (OSINT).
     ${promptContext}
-    Gere uma lista de 5 a 8 leads fictícios mas realistas.
+    Gere uma lista de 5 a 8 leads fictícios mas altamente realistas baseados nesse perfil.
     Retorne JSON Array.
   `;
 
@@ -272,25 +282,62 @@ export const mineLeadsWithAI = async (
   }
 };
 
-export const generateOsintDorks = (niche: string, city: string) => {
-  const base = "site:facebook.com";
+export const generateOsintDorks = (niche: string, city: string, platform: 'facebook' | 'instagram' | 'threads') => {
   const terms = encodeURIComponent(`"${niche}" AND "${city}"`);
-  const whatsapp = encodeURIComponent(`( "whatsapp" OR "zap" OR "celular" )`);
-  return [
-    {
-      label: "Comentários com Telefone",
-      url: `https://www.google.com/search?q=${base} ${terms} ${whatsapp} "comentários"`,
-      desc: "Busca posts onde pessoas deixaram o número nos comentários."
-    },
-    {
-      label: "Imóveis/Vendas + 'Tenho Interesse'",
-      url: `https://www.google.com/search?q=${base} ${terms} "tenho interesse" ${whatsapp}`,
-      desc: "Filtra pessoas demonstrando intenção de compra."
-    },
-    {
-      label: "Grupos Públicos do Nicho",
-      url: `https://www.google.com/search?q=${base}/groups ${terms} ${whatsapp}`,
-      desc: "Varre discussões dentro de grupos públicos."
-    }
-  ];
+  const whatsapp = encodeURIComponent(`( "whatsapp" OR "zap" OR "119" OR "contato" )`);
+  
+  if (platform === 'instagram') {
+    const base = "site:instagram.com";
+    return [
+      {
+        label: "Link na Bio + WhatsApp",
+        url: `https://www.google.com/search?q=${base} ${terms} "link na bio" ${whatsapp}`,
+        desc: "Busca perfis do Instagram que mencionam WhatsApp na bio."
+      },
+      {
+        label: "Comentários 'Tenho Interesse'",
+        url: `https://www.google.com/search?q=${base} ${terms} "tenho interesse"`,
+        desc: "Busca leads quentes nos comentários de posts."
+      },
+      {
+        label: "Busca por Reels/Vídeos",
+        url: `https://www.google.com/search?q=${base}/reel ${terms}`,
+        desc: "Encontra criadores de conteúdo locais."
+      }
+    ];
+  } else if (platform === 'threads') {
+    const base = "site:threads.net";
+    return [
+      {
+        label: "Discussões no Threads",
+        url: `https://www.google.com/search?q=${base} ${terms} ${whatsapp}`,
+        desc: "Busca conversas e replies no Threads com contatos."
+      },
+      {
+        label: "Perfis de Especialistas",
+        url: `https://www.google.com/search?q=${base}/@ ${terms} "bio"`,
+        desc: "Encontra perfis relevantes na rede."
+      }
+    ];
+  } else {
+    // Facebook (Default)
+    const base = "site:facebook.com";
+    return [
+      {
+        label: "Comentários com Telefone",
+        url: `https://www.google.com/search?q=${base} ${terms} ${whatsapp} "comentários"`,
+        desc: "Busca posts onde pessoas deixaram o número nos comentários."
+      },
+      {
+        label: "Grupos Públicos",
+        url: `https://www.google.com/search?q=${base}/groups ${terms} ${whatsapp}`,
+        desc: "Varre discussões dentro de grupos públicos."
+      },
+      {
+        label: "Marketplace / Vendas",
+        url: `https://www.google.com/search?q=${base}/marketplace ${terms}`,
+        desc: "Busca anúncios de venda direta."
+      }
+    ];
+  }
 };

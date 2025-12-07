@@ -13,8 +13,7 @@ import Auth from './components/Auth';
 import AdminPanel from './components/AdminPanel';
 import { AppSettings, Campaign, User } from './types';
 import { storageService } from './services/storageService';
-import { auth, isFirebaseConfigured } from './services/firebaseConfig';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { authService } from './services/authService';
 
 interface DashboardProps {
   settings: AppSettings;
@@ -141,7 +140,6 @@ const App = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
   
-  // Carrega configurações iniciais
   const [settings, setSettings] = useState<AppSettings>(() => {
     const saved = localStorage.getItem('zap_marketing_settings');
     return saved ? JSON.parse(saved) : {
@@ -156,33 +154,19 @@ const App = () => {
     };
   });
 
-  // Listener de Autenticação
   useEffect(() => {
-    if (isFirebaseConfigured && auth) {
-      const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-        if (firebaseUser) {
-          // Busca o plano atualizado do banco
-          const userList = await storageService.getAllUsers();
-          const me = userList.find(u => u.uid === firebaseUser.uid);
-          
-          setUser({
-             uid: firebaseUser.uid,
-             email: firebaseUser.email || '',
-             name: firebaseUser.displayName || 'Usuário',
-             plan: me?.plan || 'free',
-             isAuthenticated: true,
-             isAdmin: firebaseUser.email === 'admin@zapmarketing.com' || me?.isAdmin
-          });
-        } else {
-          setUser(null);
-        }
-        setLoadingAuth(false);
-      });
-      return () => unsubscribe();
-    } else {
+      // Verifica sessão salva no "Auth Próprio"
+      const session = authService.getSession();
+      if (session) {
+          setUser(session);
+      }
       setLoadingAuth(false);
-    }
   }, []);
+
+  const handleLogin = (loggedUser: User) => {
+      setUser(loggedUser);
+      authService.setSession(loggedUser);
+  };
 
   const handleSaveSettings = (newSettings: AppSettings) => {
     setSettings(newSettings);
@@ -200,9 +184,7 @@ const App = () => {
   };
 
   const handleLogout = async () => {
-    if (isFirebaseConfigured && auth) {
-        await signOut(auth);
-    }
+    authService.logout();
     setUser(null);
     setMobileMenuOpen(false);
   };
@@ -226,7 +208,7 @@ const App = () => {
   }
 
   if (!user || !user.isAuthenticated) {
-    return <Auth onLogin={setUser} />;
+    return <Auth onLogin={handleLogin} />;
   }
 
   return (
@@ -259,17 +241,8 @@ const App = () => {
               <div>
                 <h1 className="font-bold text-slate-900 leading-tight text-lg">ZapMarketing</h1>
                 <div className="flex items-center gap-2 mt-1">
-                  {!isFirebaseConfigured ? (
-                    <>
-                      <span className="w-2 h-2 rounded-full bg-yellow-500 status-dot"></span>
-                      <p className="text-xs text-yellow-600 font-bold uppercase tracking-wider">Modo Offline</p>
-                    </>
-                  ) : (
-                    <>
-                      <span className="w-2 h-2 rounded-full bg-green-500 status-dot"></span>
-                      <p className="text-xs text-green-600 font-bold uppercase tracking-wider">Sistema Online</p>
-                    </>
-                  )}
+                    <span className="w-2 h-2 rounded-full bg-blue-500 status-dot"></span>
+                    <p className="text-xs text-blue-600 font-bold uppercase tracking-wider">Neon Ready</p>
                 </div>
               </div>
             </div>
@@ -289,8 +262,7 @@ const App = () => {
               <NavItem to="/subscription" icon={CreditCard} label="Meu Plano" />
               <NavItem to="/settings" icon={SettingsIcon} label="Configurações API" />
               
-              {/* BOTÃO SECRETO DE ADMIN */}
-              {(user.isAdmin || !isFirebaseConfigured) && (
+              {(user.isAdmin) && (
                 <div className="mt-8 pt-8 border-t border-slate-100 px-4">
                     <NavLink to="/admin" className="flex items-center gap-3 text-slate-400 hover:text-slate-800 text-xs font-bold uppercase tracking-wider">
                         <Shield className="w-4 h-4" /> Acesso Admin

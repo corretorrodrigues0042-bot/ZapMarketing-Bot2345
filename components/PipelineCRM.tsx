@@ -2,19 +2,28 @@ import React, { useState, useEffect } from 'react';
 import { Phone, ArrowRight, ArrowLeft, Trash2, Plus, RefreshCw, Loader2 } from 'lucide-react';
 import { Contact } from '../types';
 import { storageService } from '../services/storageService';
-import { auth } from '../services/firebaseConfig';
+import { authService } from '../services/authService';
 
 const PipelineCRM: React.FC = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  // Load from Firebase on mount or refresh
+  // Carrega o usuário atual do sistema novo (sem Supabase)
+  useEffect(() => {
+    const session = authService.getSession();
+    if (session) {
+        setCurrentUserId(session.uid);
+    }
+  }, []);
+
+  // Carrega contatos quando o ID do usuário estiver disponível
   useEffect(() => {
     const loadContacts = async () => {
-      if (!auth.currentUser) return;
+      if (!currentUserId) return;
       setIsLoading(true);
-      const loaded = await storageService.getContacts(auth.currentUser.uid);
+      const loaded = await storageService.getContacts(currentUserId);
       setContacts(loaded.map(c => ({
         ...c,
         pipelineStage: c.pipelineStage || 'new',
@@ -23,7 +32,7 @@ const PipelineCRM: React.FC = () => {
       setIsLoading(false);
     };
     loadContacts();
-  }, [refreshKey]);
+  }, [refreshKey, currentUserId]);
 
   const stages = [
     { id: 'new', label: 'Novos Leads', color: 'bg-slate-100 border-slate-200' },
@@ -34,12 +43,12 @@ const PipelineCRM: React.FC = () => {
   ];
 
   const updateContactAndSave = async (updatedContact: Contact) => {
-    // 1. Update Local State (Optimistic UI)
+    // 1. Atualiza Interface (Otimista)
     setContacts(prev => prev.map(c => c.id === updatedContact.id ? updatedContact : c));
     
-    // 2. Save to Cloud
-    if (auth.currentUser) {
-       await storageService.saveContact(auth.currentUser.uid, updatedContact);
+    // 2. Salva no Storage Local
+    if (currentUserId) {
+       await storageService.saveContact(currentUserId, updatedContact);
     }
   };
 
@@ -50,13 +59,13 @@ const PipelineCRM: React.FC = () => {
     const currentIndex = stages.findIndex(s => s.id === contact.pipelineStage);
     let newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
 
-    // Bounds check
+    // Limites
     if (newIndex < 0) newIndex = 0;
     if (newIndex >= stages.length) newIndex = stages.length - 1;
 
     const newStage = stages[newIndex].id as any;
     
-    // Create updated object
+    // Cria objeto atualizado
     const updated = { ...contact, pipelineStage: newStage };
     await updateContactAndSave(updated);
   };
@@ -66,13 +75,13 @@ const PipelineCRM: React.FC = () => {
     
     setContacts(prev => prev.filter(c => c.id !== contactId));
     
-    if (auth.currentUser) {
-      await storageService.deleteContact(auth.currentUser.uid, contactId);
+    if (currentUserId) {
+      await storageService.deleteContact(currentUserId, contactId);
     }
   };
 
   const generateDemoLeads = async () => {
-    if (!auth.currentUser) return;
+    if (!currentUserId) return;
     const demo: Contact = { 
         id: `demo-${Date.now()}`, 
         name: 'Cliente Teste', 
@@ -82,7 +91,7 @@ const PipelineCRM: React.FC = () => {
         value: 500000,
         source: 'Simulação'
     };
-    await storageService.saveContact(auth.currentUser.uid, demo);
+    await storageService.saveContact(currentUserId, demo);
     setRefreshKey(k => k + 1);
   };
 

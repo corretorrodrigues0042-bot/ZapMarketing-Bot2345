@@ -154,7 +154,7 @@ const CampaignBuilder: React.FC<CampaignBuilderProps> = ({ settings, onCampaignC
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
-      const newFiles: DriveFile[] = Array.from(event.target.files).map(file => {
+      const newFiles: DriveFile[] = Array.from(event.target.files).map((file: File) => {
         const isImage = file.type.startsWith('image/');
         return {
           id: `local-${Date.now()}-${Math.random()}`,
