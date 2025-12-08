@@ -1,3 +1,4 @@
+
 export interface Contact {
   id: string;
   name: string;
@@ -49,6 +50,14 @@ export interface AppSettings {
   // Configuração Manual da IA
   googleApiKey: string;
   
+  // Configuração Manual do Firebase (Banco de Dados)
+  firebaseApiKey?: string;
+  firebaseAuthDomain?: string;
+  firebaseProjectId?: string;
+  firebaseStorageBucket?: string;
+  firebaseMessagingSenderId?: string;
+  firebaseAppId?: string;
+
   // Mantido para compatibilidade ou uso avançado (backend próprio)
   whatsappApiUrl: string;
   

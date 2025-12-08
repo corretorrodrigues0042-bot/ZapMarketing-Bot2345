@@ -1,26 +1,40 @@
+
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-// --- CONFIGURAÇÃO INTELIGENTE ---
-// O código agora busca as chaves nas Variáveis de Ambiente do Netlify/Vite.
-// Se não encontrar, tenta usar valores hardcoded (não recomendado para GitHub público).
+// --- CONFIGURAÇÃO HÍBRIDA (ENV + LOCALSTORAGE) ---
+// O código busca primeiro nas variáveis de ambiente (arquivo .env).
+// Se não achar, busca no LocalStorage (configurado via UI do app).
 
-const getEnv = (key: string) => {
+const getSettingsFromStorage = () => {
+    try {
+        const saved = localStorage.getItem('zap_marketing_settings');
+        return saved ? JSON.parse(saved) : {};
+    } catch(e) { return {}; }
+}
+
+const settings = getSettingsFromStorage();
+
+const getEnv = (envKey: string, settingKey: string) => {
   // @ts-ignore
-  return import.meta.env[key];
+  const envVal = import.meta.env[envKey];
+  if (envVal && !envVal.includes("SUA_API_KEY")) return envVal;
+  
+  // @ts-ignore
+  return settings[settingKey];
 }
 
 const firebaseConfig = {
-  apiKey: getEnv("VITE_FIREBASE_API_KEY") || "SUA_API_KEY_AQUI",
-  authDomain: getEnv("VITE_FIREBASE_AUTH_DOMAIN") || "seu-projeto.firebaseapp.com",
-  projectId: getEnv("VITE_FIREBASE_PROJECT_ID") || "seu-projeto",
-  storageBucket: getEnv("VITE_FIREBASE_STORAGE_BUCKET") || "seu-projeto.appspot.com",
-  messagingSenderId: getEnv("VITE_FIREBASE_MESSAGING_SENDER_ID") || "123456789",
-  appId: getEnv("VITE_FIREBASE_APP_ID") || "1:123456789:web:abcdef"
+  apiKey: getEnv("VITE_FIREBASE_API_KEY", "firebaseApiKey") || "SUA_API_KEY_AQUI",
+  authDomain: getEnv("VITE_FIREBASE_AUTH_DOMAIN", "firebaseAuthDomain") || "seu-projeto.firebaseapp.com",
+  projectId: getEnv("VITE_FIREBASE_PROJECT_ID", "firebaseProjectId") || "seu-projeto",
+  storageBucket: getEnv("VITE_FIREBASE_STORAGE_BUCKET", "firebaseStorageBucket") || "seu-projeto.appspot.com",
+  messagingSenderId: getEnv("VITE_FIREBASE_MESSAGING_SENDER_ID", "firebaseMessagingSenderId") || "123456789",
+  appId: getEnv("VITE_FIREBASE_APP_ID", "firebaseAppId") || "1:123456789:web:abcdef"
 };
 
-// Verifica se as chaves reais foram carregadas (ignora os placeholders)
+// Verifica se as chaves reais foram carregadas
 export const isFirebaseConfigured = 
   firebaseConfig.apiKey && 
   firebaseConfig.apiKey !== "SUA_API_KEY_AQUI" &&
@@ -35,9 +49,9 @@ if (isFirebaseConfigured) {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = getFirestore(app);
-    console.log("🔥 Firebase Conectado via Variáveis de Ambiente!");
+    console.log("🔥 Firebase Inicializado com sucesso!");
   } catch (error) {
-    console.warn("Erro ao iniciar Firebase. Rodando em modo Offline.", error);
+    console.warn("Erro ao iniciar Firebase. Verifique as chaves.", error);
     auth = null;
     db = null;
   }

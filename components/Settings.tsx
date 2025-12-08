@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Save, Cloud, MessageCircle, Smartphone, QrCode, Globe, CheckCircle, XCircle, Loader2, Zap, BrainCircuit, ExternalLink, Key } from 'lucide-react';
+import { Save, Cloud, MessageCircle, Smartphone, QrCode, Globe, CheckCircle, XCircle, Loader2, Zap, BrainCircuit, ExternalLink, Key, Database, Flame } from 'lucide-react';
 import { AppSettings } from '../types';
 import { validateConnection } from '../services/whatsappService';
 
@@ -45,7 +46,8 @@ const Settings: React.FC<SettingsProps> = ({ settings, onSave }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(formData);
-    alert('Configurações salvas e sistema reiniciado!');
+    alert('Configurações salvas! A página será recarregada para aplicar o Banco de Dados.');
+    window.location.reload();
   };
 
   return (
@@ -59,9 +61,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onSave }) => {
         <div className="flex-1 text-center md:text-left">
           <h2 className="text-3xl font-bold mb-2">Central de Conexões</h2>
           <p className="text-slate-300 text-lg leading-relaxed">
-            Para o Robô funcionar, preciso que você conecte as APIs abaixo.
-            <br className="hidden md:block"/>
-            Já deixei os links preparados para você pegar as chaves <strong>Grátis</strong>.
+            Configure abaixo as chaves do WhatsApp, Inteligência Artificial e Banco de Dados.
           </p>
         </div>
       </div>
@@ -170,7 +170,94 @@ const Settings: React.FC<SettingsProps> = ({ settings, onSave }) => {
           </div>
         </div>
 
-        {/* 2. Google Gemini */}
+        {/* 2. Firebase Database */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+           <div className="bg-orange-50 p-6 border-b border-orange-100 flex justify-between items-center">
+             <div className="flex items-center gap-3">
+                <div className="bg-orange-100 p-2 rounded-lg">
+                  <Flame className="w-6 h-6 text-orange-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-orange-900">Banco de Dados (Firebase)</h3>
+                  <p className="text-sm text-orange-700">Para salvar seus contatos e campanhas na nuvem.</p>
+                </div>
+             </div>
+          </div>
+          <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+             <div className="col-span-1 md:col-span-2 bg-orange-50 border border-orange-200 rounded-lg p-3 text-xs text-orange-800 mb-2">
+                <strong>Instrução:</strong> Copie os valores do arquivo de configuração do Firebase (onde você viu as chaves) e cole abaixo.
+             </div>
+
+             <div>
+                <label className="block text-xs font-bold uppercase text-slate-500 mb-1">apiKey</label>
+                <input
+                  type="text"
+                  name="firebaseApiKey"
+                  value={formData.firebaseApiKey || ''}
+                  onChange={handleChange}
+                  placeholder="Ex: AIzaSy..."
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none font-mono text-sm"
+                />
+             </div>
+             <div>
+                <label className="block text-xs font-bold uppercase text-slate-500 mb-1">authDomain</label>
+                <input
+                  type="text"
+                  name="firebaseAuthDomain"
+                  value={formData.firebaseAuthDomain || ''}
+                  onChange={handleChange}
+                  placeholder="Ex: projeto.firebaseapp.com"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none font-mono text-sm"
+                />
+             </div>
+             <div>
+                <label className="block text-xs font-bold uppercase text-slate-500 mb-1">projectId</label>
+                <input
+                  type="text"
+                  name="firebaseProjectId"
+                  value={formData.firebaseProjectId || ''}
+                  onChange={handleChange}
+                  placeholder="Ex: zapmarketing-bot"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none font-mono text-sm"
+                />
+             </div>
+             <div>
+                <label className="block text-xs font-bold uppercase text-slate-500 mb-1">storageBucket</label>
+                <input
+                  type="text"
+                  name="firebaseStorageBucket"
+                  value={formData.firebaseStorageBucket || ''}
+                  onChange={handleChange}
+                  placeholder="Ex: projeto.appspot.com"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none font-mono text-sm"
+                />
+             </div>
+             <div>
+                <label className="block text-xs font-bold uppercase text-slate-500 mb-1">messagingSenderId</label>
+                <input
+                  type="text"
+                  name="firebaseMessagingSenderId"
+                  value={formData.firebaseMessagingSenderId || ''}
+                  onChange={handleChange}
+                  placeholder="Ex: 123456789"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none font-mono text-sm"
+                />
+             </div>
+             <div>
+                <label className="block text-xs font-bold uppercase text-slate-500 mb-1">appId</label>
+                <input
+                  type="text"
+                  name="firebaseAppId"
+                  value={formData.firebaseAppId || ''}
+                  onChange={handleChange}
+                  placeholder="Ex: 1:12345:web:abcde"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none font-mono text-sm"
+                />
+             </div>
+          </div>
+        </div>
+
+        {/* 3. Google Gemini */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
            <div className="bg-purple-50 p-6 border-b border-purple-100 flex justify-between items-center">
              <div className="flex items-center gap-3">
@@ -204,7 +291,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onSave }) => {
           </div>
         </div>
 
-        {/* 3. OneDrive Configuration */}
+        {/* 4. OneDrive Configuration */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="bg-blue-50 p-6 border-b border-blue-100 flex justify-between items-center">
              <div className="flex items-center gap-3">
