@@ -211,6 +211,67 @@ export const analyzeOwnerResponse = async (
   }
 };
 
+/**
+ * ANALISADOR DE EDITAIS E PROCESSOS JURÍDICOS (NOVO)
+ */
+export const analyzeLegalText = async (
+  rawText: string,
+  apiKeyOverride?: string
+): Promise<{
+  title: string;
+  address: string;
+  valuation: string;
+  minimumBid: string;
+  discount: string;
+  processNumber: string;
+  risks: string;
+  auctionDate: string;
+}> => {
+  const ai = getAiClient(apiKeyOverride);
+  if (!ai) throw new Error("API Key required");
+
+  const prompt = `
+    Atue como um Advogado Especialista em Leilões Imobiliários.
+    Analise o texto abaixo (extraído de um Edital, Jusbrasil ou Diário Oficial) e extraia os dados estruturados da oportunidade.
+
+    TEXTO:
+    "${rawText.substring(0, 15000)}"
+
+    TAREFAS:
+    1. Identifique o imóvel (Tipo e Endereço).
+    2. Encontre o Valor de Avaliação.
+    3. Encontre o Lance Mínimo (ou 2ª Praça).
+    4. Calcule o Desconto (%) aproximado.
+    5. Extraia o número do Processo.
+    6. Identifique datas relevantes.
+    7. Resuma riscos jurídicos (ocupado, dívidas, etc) em 1 frase curta.
+
+    Retorne JSON:
+    {
+      "title": "Ex: Apartamento 100m² no Centro",
+      "address": "Endereço completo se houver",
+      "valuation": "R$ X.XXX,XX",
+      "minimumBid": "R$ X.XXX,XX",
+      "discount": "XX%",
+      "processNumber": "0000000-00.0000.0.00.0000",
+      "auctionDate": "DD/MM/AAAA",
+      "risks": "Resumo dos riscos"
+    }
+  `;
+
+  try {
+    const response = await retryWithBackoff<GenerateContentResponse>(() => ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: { responseMimeType: "application/json" }
+    }));
+    return JSON.parse(response.text || '{}');
+  } catch (error) {
+    console.error("Erro ao analisar texto jurídico", error);
+    throw new Error("Não foi possível analisar o texto.");
+  }
+};
+
 // ... (Mantenha as funções de parseContacts)
 export const parseContactsFromRawText = async (rawText: string, apiKeyOverride?: string): Promise<{ name: string; phone: string }[]> => {
   const ai = getAiClient(apiKeyOverride);
@@ -235,10 +296,15 @@ export const mineLeadsWithAI = async (
   niche: string, 
   city: string, 
   strategy: 'business' | 'comments' | 'groups',
-  platform: 'facebook' | 'instagram' | 'threads',
+  platform: 'facebook' | 'instagram' | 'threads' | 'legal',
   apiKeyOverride?: string
 ): Promise<{ name: string; phone: string; source: string; description: string }[]> => {
   const ai = getAiClient(apiKeyOverride);
+
+  // Se for busca jurídica, não gera leads fictícios, pois o foco são os links (Dorks).
+  if (platform === 'legal') {
+    return [];
+  }
 
   if (!ai) {
      return [
@@ -304,11 +370,45 @@ export const mineLeadsWithAI = async (
   }
 };
 
-export const generateOsintDorks = (niche: string, city: string, platform: 'facebook' | 'instagram' | 'threads') => {
+export const generateOsintDorks = (niche: string, city: string, platform: 'facebook' | 'instagram' | 'threads' | 'legal') => {
   const terms = encodeURIComponent(`"${niche}" AND "${city}"`);
   const whatsapp = encodeURIComponent(`( "whatsapp" OR "zap" OR "119" OR "contato" )`);
   
-  if (platform === 'instagram') {
+  if (platform === 'legal') {
+    // DORKS JURÍDICOS AVANÇADOS (LEILÕES, PENHORAS, PROCESSOS)
+    return [
+      {
+        label: "Editais PDF (Tribunais)",
+        url: `https://www.google.com/search?q=filetype:pdf "edital de leilão" "imóvel" "${city}" site:jus.br`,
+        desc: "Busca arquivos PDF oficiais em sites do governo/justiça."
+      },
+      {
+        label: "Diários Oficiais (Municipais)",
+        url: `https://www.google.com/search?q=(site:imprensaoficial.com.br OR site:diariomunicipal.com.br) "leilão" "imóvel" "${city}"`,
+        desc: "Varredura em Diários Oficiais de Prefeituras."
+      },
+      {
+        label: "Dívida Ativa/Prefeitura",
+        url: `https://www.google.com/search?q=site:gov.br "dívida ativa" "leilão" "imóvel" "${city}"`,
+        desc: "Busca leilões fiscais e dívida ativa em sites governamentais."
+      },
+      {
+        label: "Oportunidades Jusbrasil",
+        url: `https://www.google.com/search?q=site:jusbrasil.com.br "leilão" "imóvel" "penhora" "${city}"`,
+        desc: "Varredura de processos de leilão e penhora no Jusbrasil."
+      },
+      {
+        label: "Caixa/Bancos (Venda Direta)",
+        url: `https://www.google.com/search?q="venda direta" "caixa" "imóvel" "${city}" -leilão`,
+        desc: "Imóveis retomados por bancos (Licitações abertas)."
+      },
+      {
+        label: "Leiloeiros Oficiais (Sodré/Zukerman)",
+        url: `https://www.google.com/search?q=(site:sodresantoro.com.br OR site:zukerman.com.br OR site:leiloesjudiciais.com.br) "imóvel" "${city}"`,
+        desc: "Busca nos maiores portais de leilão do país."
+      }
+    ];
+  } else if (platform === 'instagram') {
     const base = "site:instagram.com";
     return [
       {
