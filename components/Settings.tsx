@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Save, Cloud, MessageCircle, Smartphone, QrCode, Globe, CheckCircle, XCircle, Loader2, Zap, BrainCircuit, ExternalLink, Key, Database, Flame } from 'lucide-react';
 import { AppSettings } from '../types';
@@ -76,8 +75,8 @@ const Settings: React.FC<SettingsProps> = ({ settings, onSave }) => {
                   <Smartphone className="w-6 h-6 text-green-700" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-green-900">WhatsApp (Green API)</h3>
-                  <p className="text-sm text-green-700">Conexão para envio de mensagens e arquivos.</p>
+                  <h3 className="text-xl font-bold text-green-900">WhatsApp (API)</h3>
+                  <p className="text-sm text-green-700">Conexão via Green API (Plano Gratuito disponível).</p>
                 </div>
              </div>
              <a 
@@ -86,11 +85,17 @@ const Settings: React.FC<SettingsProps> = ({ settings, onSave }) => {
                 rel="noreferrer"
                 className="hidden md:flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition-colors shadow-sm"
              >
-                Pegar Chave Grátis <ExternalLink className="w-4 h-4" />
+                Criar Conta Grátis <ExternalLink className="w-4 h-4" />
              </a>
           </div>
 
           <div className="p-8 space-y-6">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <p className="text-sm text-blue-800">
+                    <strong>Como usar Grátis:</strong> No site da Green API, crie uma conta e selecione o plano <strong>"Developer"</strong>. Ele é gratuito para testes e pequenos volumes. Copie o <strong>IdInstance</strong> e o <strong>ApiTokenInstance</strong> abaixo.
+                </p>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-xs font-bold uppercase text-slate-500 mb-2">IdInstance (ID da Instância)</label>
@@ -164,7 +169,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onSave }) => {
                   className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-600"
                 />
                 <label htmlFor="useCorsProxy" className="text-sm text-slate-600 flex items-center gap-1 cursor-pointer select-none">
-                   <Globe className="w-3 h-3" /> Usar Proxy (Ative se der erro de CORS)
+                   <Globe className="w-3 h-3" /> Usar Proxy (Ative se der erro de CORS na versão Grátis)
                 </label>
             </div>
           </div>
@@ -332,35 +337,34 @@ const Settings: React.FC<SettingsProps> = ({ settings, onSave }) => {
 
         {/* Simulation Mode */}
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 flex items-start gap-4">
-           <div className="pt-1">
-              <input
-                id="enableSimulation"
-                name="enableSimulation"
-                type="checkbox"
-                checked={formData.enableSimulation}
-                onChange={handleChange}
-                className="w-5 h-5 text-yellow-600 rounded focus:ring-yellow-500"
-              />
-           </div>
-           <div>
-              <label htmlFor="enableSimulation" className="text-yellow-900 font-bold text-lg cursor-pointer">
-                 Modo de Segurança (Simulação)
-              </label>
-              <p className="text-yellow-800 text-sm mt-1">
-                 Se ativado, o robô vai fingir que enviou. Desative apenas quando tiver certeza que quer enviar para clientes reais.
-              </p>
-           </div>
+            <div className="mt-1">
+               <input
+                  id="enableSimulation"
+                  name="enableSimulation"
+                  type="checkbox"
+                  checked={formData.enableSimulation}
+                  onChange={handleChange}
+                  className="h-5 w-5 rounded border-gray-300 text-yellow-600 focus:ring-yellow-600"
+               />
+            </div>
+            <div>
+               <label htmlFor="enableSimulation" className="font-bold text-slate-800 block cursor-pointer select-none">
+                  Ativar Modo de Simulação
+               </label>
+               <p className="text-sm text-slate-600 mt-1">
+                 Se ativado, o sistema finge que enviou a mensagem (útil para testar sem gastar créditos ou banir número). 
+                 <br/><strong>Desmarque</strong> quando quiser enviar para valer.
+               </p>
+            </div>
         </div>
 
-        <div className="flex justify-end pt-4">
-          <button
-            type="submit"
-            className="flex items-center gap-2 px-10 py-4 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all shadow-xl font-bold text-lg"
-          >
-            <Save className="w-6 h-6" />
-            Salvar Tudo
-          </button>
-        </div>
+        <button 
+          type="submit"
+          className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold text-lg hover:bg-blue-500 transition-all shadow-xl shadow-blue-900/20 flex items-center justify-center gap-2"
+        >
+          <Save className="w-5 h-5" /> SALVAR TODAS AS CONFIGURAÇÕES
+        </button>
+
       </form>
     </div>
   );

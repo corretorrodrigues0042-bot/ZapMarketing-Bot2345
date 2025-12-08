@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Cloud, Wand2, Send, Monitor, FileSpreadsheet, Sparkles, Check, ChevronRight, Zap, Bot, Home, DollarSign, MapPin, User, Phone, Loader2, Target } from 'lucide-react';
+import { Cloud, Wand2, Send, Monitor, FileSpreadsheet, Sparkles, Check, ChevronRight, Zap, Bot, Home, DollarSign, MapPin, User, Phone, Loader2, Target, MousePointerClick } from 'lucide-react';
 import { Campaign, DriveFile, Contact, AppSettings, PropertyDossier } from '../types';
 import { storageService } from '../services/storageService';
 import { generateMarketingCopy, parseContactsFromRawText } from '../services/geminiService';
@@ -30,6 +30,7 @@ const CampaignBuilder: React.FC<CampaignBuilderProps> = ({ settings, onCampaignC
 
   const [marketingStrategy, setMarketingStrategy] = useState<string>('balanced');
   const [generatedText, setGeneratedText] = useState('');
+  const [generatedOptions, setGeneratedOptions] = useState<{style: string, content: string}[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<DriveFile[]>([]);
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
@@ -61,24 +62,30 @@ const CampaignBuilder: React.FC<CampaignBuilderProps> = ({ settings, onCampaignC
   const handleGenerateText = async () => {
     if (!dossier.title || !dossier.price) return alert('Preencha pelo menos Título e Preço do Dossiê.');
     setIsGenerating(true);
+    setGeneratedText('');
+    setGeneratedOptions([]);
     
-    // Injeta a estratégia no título para a IA entender o contexto (uma forma simples de passar o prompt extra sem mudar a assinatura da função service)
-    const strategyContext = {
-      balanced: "Equilibrado (AIDA padrão)",
-      urgent: "URGÊNCIA: Foque que vai vender rápido, últimas unidades ou oportunidade relâmpago.",
-      exclusive: "EXCLUSIVIDADE: Foque em 'Off-market', 'VIP', 'Convite secreto'.",
-      investor: "INVESTIDOR: Foque em ROI, rentabilidade e valorização.",
-    }[marketingStrategy] || "";
-
     // Adiciona o contexto da estratégia ao objeto enviado para a IA
     const enrichedDossier = {
       ...dossier,
-      details: `[ESTRATÉGIA DE MARKETING: ${strategyContext}] \n ${dossier.details}`
+      details: `${dossier.details}`
     };
 
-    const text = await generateMarketingCopy(enrichedDossier, settings.googleApiKey);
-    setGeneratedText(text);
+    const options = await generateMarketingCopy(enrichedDossier, settings.googleApiKey);
+    
+    // Se a IA retornar array, salva nas opções. Se não, usa como texto direto.
+    if (Array.isArray(options) && options.length > 0) {
+        setGeneratedOptions(options);
+    } else {
+        // @ts-ignore
+        setGeneratedText(options);
+    }
+    
     setIsGenerating(false);
+  };
+
+  const selectOption = (text: string) => {
+     setGeneratedText(text);
   };
 
   const handleSyncContacts = async () => {
@@ -368,55 +375,69 @@ const CampaignBuilder: React.FC<CampaignBuilderProps> = ({ settings, onCampaignC
                     )}
                </div>
 
-               <div className="flex-1 bg-slate-900 rounded-2xl p-6 text-white relative overflow-hidden">
+               <div className="flex-1 bg-slate-900 rounded-2xl p-6 text-white relative overflow-hidden flex flex-col">
                     <div className="absolute top-0 right-0 p-6 opacity-10"><Bot className="w-32 h-32" /></div>
-                    <div className="relative z-10">
+                    <div className="relative z-10 flex flex-col flex-1">
                         <div className="flex justify-between items-start mb-4">
                             <div>
                                 <h4 className="font-bold text-purple-300 mb-1 flex items-center gap-2"><Zap className="w-4 h-4" /> Copy Automática</h4>
-                                <p className="text-xs text-slate-400">O Robô vai escrever o texto para você.</p>
+                                <p className="text-xs text-slate-400">O Robô cria 3 opções para você.</p>
                             </div>
                         </div>
-
-                        {/* Strategy Selector */}
-                        <div className="bg-white/5 p-3 rounded-lg border border-white/10 mb-4">
-                           <label className="text-[10px] text-slate-400 font-bold uppercase flex items-center gap-1 mb-2">
-                             <Target className="w-3 h-3" /> Estratégia do Robô:
-                           </label>
-                           <div className="grid grid-cols-2 gap-2">
-                              {[
-                                { id: 'balanced', label: 'Equilibrado (Padrão)' },
-                                { id: 'urgent', label: '🔥 Urgência / Escassez' },
-                                { id: 'exclusive', label: '💎 Convite VIP / Secreto' },
-                                { id: 'investor', label: '💰 Foco em Investidor' }
-                              ].map(s => (
-                                <button
-                                  key={s.id}
-                                  onClick={() => setMarketingStrategy(s.id)}
-                                  className={`text-xs px-2 py-1.5 rounded-md border text-left transition-all ${marketingStrategy === s.id ? 'bg-purple-600 border-purple-500 text-white font-bold' : 'bg-transparent border-white/20 text-slate-300 hover:bg-white/10'}`}
-                                >
-                                  {s.label}
-                                </button>
-                              ))}
-                           </div>
-                        </div>
                         
-                        <div className="bg-white/10 rounded-lg p-4 text-sm font-mono min-h-[100px] border border-white/10 relative">
+                        <div className="flex-1 space-y-3 min-h-[150px] overflow-y-auto mb-4">
                             {isGenerating && (
-                              <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-10 rounded-lg">
-                                <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+                              <div className="h-full flex flex-col items-center justify-center bg-slate-800/50 rounded-lg p-6">
+                                <Loader2 className="w-8 h-8 text-purple-400 animate-spin mb-2" />
+                                <span className="text-xs text-purple-300">Escrevendo 3 versões...</span>
                               </div>
                             )}
-                            {generatedText || <span className="text-slate-500 italic">Preencha os dados e clique em "Gerar Copy"...</span>}
+
+                            {!isGenerating && generatedOptions.length > 0 ? (
+                                <div className="space-y-3">
+                                    <p className="text-xs text-slate-400 uppercase font-bold">Escolha a melhor versão:</p>
+                                    {generatedOptions.map((opt, idx) => (
+                                        <div 
+                                            key={idx}
+                                            onClick={() => selectOption(opt.content)}
+                                            className={`p-3 rounded-lg border cursor-pointer transition-all hover:scale-[1.02] ${
+                                                generatedText === opt.content 
+                                                ? 'bg-purple-600 border-purple-400 shadow-lg ring-1 ring-white/50' 
+                                                : 'bg-white/10 border-white/10 hover:bg-white/20'
+                                            }`}
+                                        >
+                                            <div className="flex justify-between items-center mb-1">
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-purple-300 bg-purple-900/50 px-2 py-0.5 rounded">{opt.style}</span>
+                                                {generatedText === opt.content && <Check className="w-3 h-3 text-white" />}
+                                            </div>
+                                            <p className="text-xs text-slate-200 leading-relaxed line-clamp-3">{opt.content}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                !isGenerating && generatedText && (
+                                     <textarea 
+                                        className="w-full h-full bg-transparent border-none text-sm focus:ring-0 text-slate-200 resize-none"
+                                        value={generatedText}
+                                        onChange={(e) => setGeneratedText(e.target.value)}
+                                     />
+                                )
+                            )}
+                            
+                            {!isGenerating && !generatedText && generatedOptions.length === 0 && (
+                                <div className="h-full flex items-center justify-center text-slate-500 italic text-sm">
+                                    Preencha os dados e clique em "Gerar Copy"...
+                                </div>
+                            )}
                         </div>
                         
-                        <div className="flex justify-between mt-4">
+                        <div className="flex justify-between mt-auto pt-4 border-t border-white/10">
                              <button 
                                 onClick={handleGenerateText}
                                 disabled={isGenerating}
                                 className="text-purple-300 text-xs font-bold hover:text-white flex items-center gap-1 bg-purple-900/50 px-3 py-2 rounded-lg border border-purple-500/30 hover:bg-purple-900 transition-colors"
                             >
-                                <Wand2 className="w-3 h-3" /> GERAR COPY (IA)
+                                <Wand2 className="w-3 h-3" /> {generatedOptions.length > 0 ? 'GERAR NOVAS' : 'CRIAR COPY (IA)'}
                             </button>
                             <button 
                             onClick={() => setStep(2)}
@@ -517,8 +538,8 @@ const CampaignBuilder: React.FC<CampaignBuilderProps> = ({ settings, onCampaignC
                      <span className="font-bold text-slate-900">{dossier.price}</span>
                    </div>
                    <div className="flex justify-between">
-                     <span className="text-slate-500 text-sm">Estratégia:</span>
-                     <span className="font-bold text-purple-600 text-xs uppercase bg-purple-50 px-2 py-0.5 rounded">{marketingStrategy}</span>
+                     <span className="text-slate-500 text-sm">Mensagem:</span>
+                     <span className="font-bold text-slate-900 text-xs italic truncate w-[200px] text-right">"{generatedText.substring(0, 30)}..."</span>
                    </div>
                    <div className="flex justify-between">
                      <span className="text-slate-500 text-sm">Modo:</span>

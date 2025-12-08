@@ -33,39 +33,61 @@ async function retryWithBackoff<T>(fn: () => Promise<T>, retries = 3, delay = 20
 
 /**
  * GERA O PRIMEIRO DISPARO (Texto Curto e Persuasivo)
+ * Agora retorna 3 variações para o usuário escolher.
  */
 export const generateMarketingCopy = async (
   dossier: PropertyDossier,
   apiKeyOverride?: string
-): Promise<string> => {
+): Promise<{ style: string; content: string }[]> => {
   const ai = getAiClient(apiKeyOverride);
 
-  if (!ai) return `Olá! Oportunidade única: ${dossier.title} por apenas ${dossier.price}. Vamos agendar uma visita?`;
+  const fallback = [{ style: "Padrão", content: `Olá! Oportunidade única: ${dossier.title} por apenas ${dossier.price}. Vamos agendar uma visita?` }];
+
+  if (!ai) return fallback;
 
   try {
     const prompt = `
-      Atue como um Corretor de Elite.
-      Escreva uma mensagem de WhatsApp (máx 300 caracteres) para um lead frio.
+      Atue como um Especialista em Copywriting para WhatsApp (Marketing Imobiliário).
+      Crie 3 variações de mensagens curtas para vender este imóvel para um lead frio.
       
-      IMÓVEL: ${dossier.title}
-      LOCAL: ${dossier.location}
-      PREÇO: ${dossier.price}
-      DETALHES: ${dossier.details}
+      DADOS DO IMÓVEL:
+      - Título: ${dossier.title}
+      - Local: ${dossier.location}
+      - Preço: ${dossier.price}
+      - Detalhes: ${dossier.details}
       
-      Técnica: AIDA (Atenção, Interesse, Desejo, Ação).
-      NÃO coloque "Olá nome". Comece direto com uma pergunta ou afirmação impactante sobre o imóvel.
-      Use gatilhos de exclusividade.
-      Finalize com uma pergunta fechada (ex: "Posso te mandar as fotos?").
+      REGRAS:
+      1. Use emojis com moderação.
+      2. Máximo 300 caracteres por mensagem.
+      3. Finalize com uma Pergunta (CTA).
+      4. Variação 1: Estilo "Urgência/Oportunidade" (Focado em preço/tempo).
+      5. Variação 2: Estilo "Storytelling/Emocional" (Focado em conforto/família).
+      6. Variação 3: Estilo "Executivo/Investidor" (Curto, direto, focado em localização/números).
     `;
 
     const response = await retryWithBackoff<GenerateContentResponse>(() => ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              style: { type: Type.STRING },
+              content: { type: Type.STRING }
+            }
+          }
+        }
+      }
     }));
 
-    return response.text || "Erro ao gerar texto.";
+    const result = JSON.parse(response.text || '[]');
+    return Array.isArray(result) && result.length > 0 ? result : fallback;
   } catch (error) {
-    return "Oportunidade de Imóvel! Responda para ver fotos.";
+    console.error("Erro copy", error);
+    return fallback;
   }
 };
 
