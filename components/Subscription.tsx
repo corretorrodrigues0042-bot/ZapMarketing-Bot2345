@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { Check, Zap, Crown, Shield, Smartphone, ArrowRight, Key, Loader2, Star } from 'lucide-react';
-import { User } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Check, Zap, Crown, Shield, Smartphone, ArrowRight, Key, Loader2, Star, DollarSign } from 'lucide-react';
+import { User, AppSettings } from '../types';
 import { authService } from '../services/authService';
+import { storageService } from '../services/storageService';
 
 interface SubscriptionProps {
     user: User;
@@ -10,12 +11,28 @@ interface SubscriptionProps {
 const Subscription: React.FC<SubscriptionProps> = ({ user }) => {
     const [licenseKey, setLicenseKey] = useState('');
     const [isActivating, setIsActivating] = useState(false);
-    
-    // GERA O LINK DE WHATSAPP PARA VENDA
-    const getPaymentLink = (plan: string, price: string) => {
-        const message = `Olá! Quero assinar o plano *${plan}* do ZapMarketing.\n\nMeu Email de cadastro é: *${user.email}*\nValor: R$ ${price}`;
-        const seuNumeroWhatsApp = "5511999999999"; 
-        return `https://wa.me/${seuNumeroWhatsApp}?text=${encodeURIComponent(message)}`;
+    const [settings, setSettings] = useState<AppSettings | null>(null);
+
+    useEffect(() => {
+        const load = async () => {
+            const s = await storageService.getUserSettings(user.uid);
+            // Fallback para settings globais se o user não tiver salvo ainda
+            const localS = JSON.parse(localStorage.getItem('zap_marketing_settings') || '{}');
+            setSettings({ ...localS, ...s });
+        };
+        load();
+    }, [user.uid]);
+
+    // GERA O LINK DE CHECKOUT DINÂMICO
+    const getCheckoutLink = (plan: 'pro' | 'enterprise') => {
+        const fallbackPhone = settings?.salesContactPhone || "5511999999999";
+        const message = `Olá! Quero assinar o plano *${plan.toUpperCase()}* do ZapMarketing.\nEmail: ${user.email}`;
+        const whatsappFallback = `https://wa.me/${fallbackPhone}?text=${encodeURIComponent(message)}`;
+
+        if (plan === 'pro') return settings?.salesUrlPro || whatsappFallback;
+        if (plan === 'enterprise') return settings?.salesUrlEnterprise || whatsappFallback;
+        
+        return whatsappFallback;
     };
 
     const handleActivate = async () => {
@@ -29,7 +46,7 @@ const Subscription: React.FC<SubscriptionProps> = ({ user }) => {
             alert(`Parabéns! Plano ${result.plan?.toUpperCase()} ativado com sucesso.`);
             window.location.reload(); // Recarrega para atualizar permissões
         } else {
-            alert("Chave inválida ou expirada. Verifique seu email da Hotmart.");
+            alert("Chave inválida ou expirada. Verifique seu email de confirmação.");
         }
     };
 
@@ -47,7 +64,7 @@ const Subscription: React.FC<SubscriptionProps> = ({ user }) => {
                 </p>
             </div>
 
-            {/* License Activation Area (Hotmart Style) */}
+            {/* License Activation Area (Porta de Entrada) */}
             <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl border border-slate-700 relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-12 opacity-5">
                     <Key className="w-64 h-64 transform rotate-45" />
@@ -55,10 +72,10 @@ const Subscription: React.FC<SubscriptionProps> = ({ user }) => {
                 
                 <div className="relative z-10">
                     <h3 className="text-2xl font-bold flex items-center gap-2 mb-2">
-                        <Star className="w-6 h-6 text-yellow-400 fill-yellow-400" /> Já comprou na Hotmart/AppStore?
+                        <Star className="w-6 h-6 text-yellow-400 fill-yellow-400" /> Já possui uma Licença?
                     </h3>
                     <p className="text-slate-300">
-                        Insira a Chave de Licença que você recebeu no email para desbloquear o PRO instantaneamente.
+                        Insira a Chave de Licença recebida no email para desbloquear o PRO instantaneamente.
                     </p>
                 </div>
 
@@ -76,7 +93,7 @@ const Subscription: React.FC<SubscriptionProps> = ({ user }) => {
                         className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-900/50 flex items-center justify-center gap-2"
                     >
                         {isActivating ? <Loader2 className="animate-spin w-5 h-5" /> : <Key className="w-5 h-5" />}
-                        Ativar Agora
+                        Ativar
                     </button>
                 </div>
             </div>
@@ -92,7 +109,7 @@ const Subscription: React.FC<SubscriptionProps> = ({ user }) => {
                         <p className="text-slate-400 text-sm mt-1">Para conhecer a plataforma.</p>
                     </div>
                     <ul className="space-y-4 mb-8 flex-1">
-                        <li className="flex gap-3 text-slate-600 text-sm"><Check className="w-5 h-5 text-green-500 flex-shrink-0" /> 10 Disparos manuais/dia</li>
+                        <li className="flex gap-3 text-slate-600 text-sm"><Check className="w-5 h-5 text-green-500 flex-shrink-0" /> Limite Diário de Disparos</li>
                         <li className="flex gap-3 text-slate-600 text-sm"><Check className="w-5 h-5 text-green-500 flex-shrink-0" /> 1 Campanha Ativa</li>
                         <li className="flex gap-3 text-slate-600 text-sm"><Check className="w-5 h-5 text-green-500 flex-shrink-0" /> Gestão de Leads Básica</li>
                         <li className="flex gap-3 text-slate-400 text-sm line-through"><Shield className="w-5 h-5 flex-shrink-0" /> Sem IA de Mineração</li>
@@ -111,14 +128,15 @@ const Subscription: React.FC<SubscriptionProps> = ({ user }) => {
                         <span className="text-sm font-bold text-blue-400 uppercase tracking-wider flex items-center gap-2">
                              <Zap className="w-4 h-4" /> Profissional
                         </span>
-                        <h3 className="text-4xl font-bold text-white mt-2">R$ 97<span className="text-lg text-slate-400 font-normal">/mês</span></h3>
-                        <p className="text-slate-400 text-sm mt-1">Ferramentas completas de automação.</p>
+                        {/* Preço removido/escondido, usa termos genéricos ou configuráveis se quiser, mas aqui deixamos "Consulte" ou o link direto */}
+                        <h3 className="text-4xl font-bold text-white mt-2">Completo</h3>
+                        <p className="text-slate-400 text-sm mt-1">Ferramentas de automação.</p>
                     </div>
                     <ul className="space-y-4 mb-8 flex-1">
                         <li className="flex gap-3 text-slate-300 text-sm"><Check className="w-5 h-5 text-blue-400 flex-shrink-0" /> <strong>Disparos Ilimitados</strong></li>
-                        <li className="flex gap-3 text-slate-300 text-sm"><Check className="w-5 h-5 text-blue-400 flex-shrink-0" /> 10 Campanhas Simultâneas</li>
+                        <li className="flex gap-3 text-slate-300 text-sm"><Check className="w-5 h-5 text-blue-400 flex-shrink-0" /> Campanhas Simultâneas</li>
                         <li className="flex gap-3 text-slate-300 text-sm"><Check className="w-5 h-5 text-blue-400 flex-shrink-0" /> <strong>IA Copywriter</strong> (Cria os textos)</li>
-                        <li className="flex gap-3 text-slate-300 text-sm"><Check className="w-5 h-5 text-blue-400 flex-shrink-0" /> <strong>Mineração de Leads</strong> (Facebook/Insta)</li>
+                        <li className="flex gap-3 text-slate-300 text-sm"><Check className="w-5 h-5 text-blue-400 flex-shrink-0" /> <strong>Mineração de Leads</strong> (FB/Insta)</li>
                         <li className="flex gap-3 text-slate-300 text-sm"><Check className="w-5 h-5 text-blue-400 flex-shrink-0" /> Suporte Prioritário</li>
                     </ul>
                     
@@ -128,12 +146,12 @@ const Subscription: React.FC<SubscriptionProps> = ({ user }) => {
                          </div>
                     ) : (
                         <a 
-                            href={getPaymentLink('Profissional', '97,00')} 
+                            href={getCheckoutLink('pro')} 
                             target="_blank"
                             rel="noreferrer"
                             className="w-full py-4 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-500 transition-all text-center shadow-lg shadow-blue-900/50 flex items-center justify-center gap-2 group"
                         >
-                            <Smartphone className="w-5 h-5" /> Comprar Licença
+                            <DollarSign className="w-5 h-5" /> Assinar Agora
                             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </a>
                     )}
@@ -145,8 +163,8 @@ const Subscription: React.FC<SubscriptionProps> = ({ user }) => {
                         <span className="text-sm font-bold text-purple-600 uppercase tracking-wider flex items-center gap-2">
                              <Crown className="w-4 h-4" /> Imobiliária
                         </span>
-                        <h3 className="text-3xl font-bold text-slate-900 mt-2">R$ 297<span className="text-lg text-slate-400 font-normal">/mês</span></h3>
-                        <p className="text-slate-400 text-sm mt-1">Para times e agências.</p>
+                        <h3 className="text-3xl font-bold text-slate-900 mt-2">Agência</h3>
+                        <p className="text-slate-400 text-sm mt-1">Para times grandes.</p>
                     </div>
                     <ul className="space-y-4 mb-8 flex-1">
                         <li className="flex gap-3 text-slate-600 text-sm"><Check className="w-5 h-5 text-purple-500 flex-shrink-0" /> Tudo do Plano Pro</li>
@@ -160,7 +178,7 @@ const Subscription: React.FC<SubscriptionProps> = ({ user }) => {
                          </div>
                     ) : (
                         <a 
-                            href={getPaymentLink('Enterprise', '297,00')}
+                            href={getCheckoutLink('enterprise')}
                             target="_blank"
                             rel="noreferrer"
                             className="w-full py-3 rounded-xl border-2 border-slate-100 font-bold text-slate-700 hover:border-purple-200 hover:bg-purple-50 hover:text-purple-700 transition-all text-center flex items-center justify-center gap-2"

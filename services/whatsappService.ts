@@ -1,4 +1,4 @@
-import { AppSettings, Contact, DriveFile } from '../types';
+import { AppSettings, Contact, DriveFile, WhatsAppMessage } from '../types';
 
 interface SendResult {
   success: boolean;
@@ -20,22 +20,17 @@ const getBaseUrl = (settings: AppSettings, method: string): string => {
   // MODO AVANÇADO/LEGADO: Usa a URL completa colada
   if (settings.whatsappApiUrl) {
     let url = settings.whatsappApiUrl.trim();
-    
-    // Limpeza básica
     url = url.replace(/waInstanceInstance/gi, 'waInstance');
     url = url.replace(/{{|}}/g, '');
     if (!url.startsWith('http')) url = 'https://' + url;
 
-    // Tenta injetar o método correto na URL existente
     try {
-      // Se a URL já tem um método (ex: sendMessage), troca ele
       if (url.includes('/sendMessage/')) return url.replace('/sendMessage/', `/${method}/`);
       if (url.includes('/getContacts/')) return url.replace('/getContacts/', `/${method}/`);
       if (url.includes('/getChats/')) return url.replace('/getChats/', `/${method}/`);
       if (url.includes('/getStateInstance/')) return url.replace('/getStateInstance/', `/${method}/`);
-      
-      // Se não tem método claro, assume que a estrutura termina antes do token (difícil saber sem regex complexo, 
-      // então confiamos mais no Modo Fácil acima)
+      if (url.includes('/getChatHistory/')) return url.replace('/getChatHistory/', `/${method}/`);
+      if (url.includes('/lastIncomingMessages/')) return url.replace('/lastIncomingMessages/', `/${method}/`);
     } catch (e) {
       console.warn("Erro ao reconstruir URL manual", e);
     }
@@ -43,6 +38,53 @@ const getBaseUrl = (settings: AppSettings, method: string): string => {
   }
 
   throw new Error("API não configurada. Informe o Instance ID e Token nas configurações.");
+};
+
+/**
+ * Busca o Histórico de Mensagens de um Chat Específico
+ */
+export const getChatHistory = async (settings: AppSettings, chatId: string): Promise<WhatsAppMessage[]> => {
+  if (settings.enableSimulation) {
+      // Mock para simulação
+      return [
+          { id: '1', chatId, senderId: chatId, text: 'Olá, vi o anúncio do apartamento.', timestamp: Date.now() - 100000, fromMe: false, type: 'text' },
+          { id: '2', chatId, senderId: 'me', text: 'Olá! Tudo bem? Qual apartamento lhe interessou?', timestamp: Date.now() - 90000, fromMe: true, type: 'text' },
+          { id: '3', chatId, senderId: chatId, text: 'O da Vila Nova. Ainda está disponível?', timestamp: Date.now() - 80000, fromMe: false, type: 'text' }
+      ];
+  }
+
+  try {
+    let targetUrl = getBaseUrl(settings, 'getChatHistory');
+    if (settings.useCorsProxy) targetUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
+
+    const payload = { chatId, count: 20 };
+    
+    const res = await fetch(targetUrl, { 
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) return [];
+
+    const data = await res.json();
+    if (!Array.isArray(data)) return [];
+
+    // Mapeia para nosso formato interno
+    return data.map((msg: any) => ({
+        id: msg.idMessage,
+        chatId: msg.chatId,
+        senderId: msg.senderId,
+        text: msg.textMessage || (msg.typeMessage === 'imageMessage' ? '[Imagem]' : '[Arquivo]'),
+        timestamp: msg.timestamp * 1000,
+        fromMe: msg.type === 'outgoing',
+        type: (msg.typeMessage === 'imageMessage' ? 'image' : 'text') as 'text' | 'image' | 'document' | 'audio'
+    })).reverse(); // GreenAPI retorna do mais novo pro antigo, invertemos para chat
+
+  } catch (error) {
+      console.error("Erro ao buscar histórico", error);
+      return [];
+  }
 };
 
 /**
@@ -68,15 +110,12 @@ export const getGreenApiContacts = async (settings: AppSettings): Promise<Contac
 
   try {
     let rawData: any[] = [];
-    
-    // TENTATIVA 1: Agenda
     try {
       rawData = await fetchFromApi('getContacts');
     } catch (e) {
       console.warn("getContacts falhou, tentando fallback chats...");
     }
 
-    // TENTATIVA 2: Chats Ativos (Fallback)
     if (!Array.isArray(rawData) || rawData.length === 0) {
       rawData = await fetchFromApi('getChats');
     }
@@ -85,7 +124,6 @@ export const getGreenApiContacts = async (settings: AppSettings): Promise<Contac
       throw new Error("API retornou dados inválidos.");
     }
 
-    // Processamento
     const contacts: Contact[] = rawData
       .filter((item: any) => {
         const id = item.id || item.chatId;
@@ -104,7 +142,6 @@ export const getGreenApiContacts = async (settings: AppSettings): Promise<Contac
         };
       });
 
-    // Remove duplicatas
     const uniqueContacts = Array.from(new Map(contacts.map(c => [c.id, c])).values());
     return uniqueContacts;
 
@@ -170,12 +207,10 @@ export const sendWhatsAppMessage = async (
     let requestOptions: RequestInit = {};
     const chatId = contact.id.includes('@') ? contact.id : `${contact.phone.replace(/\D/g, '')}@c.us`;
 
-    // --- COM ARQUIVOS ---
     if (files.length > 0) {
       const file = files[0];
       
       if (file.fileObject) {
-          // Upload Local
           targetUrl = getBaseUrl(settings, 'sendFileByUpload');
           const formData = new FormData();
           formData.append('chatId', chatId);
@@ -183,7 +218,6 @@ export const sendWhatsAppMessage = async (
           formData.append('file', file.fileObject);
           requestOptions = { method: 'POST', body: formData };
       } else {
-          // Link (OneDrive/Web)
           targetUrl = getBaseUrl(settings, 'sendFileByUrl');
           const payload = {
             chatId: chatId,
@@ -198,7 +232,6 @@ export const sendWhatsAppMessage = async (
           };
       }
     } 
-    // --- APENAS TEXTO ---
     else {
       targetUrl = getBaseUrl(settings, 'sendMessage');
       const payload = { chatId: chatId, message: text };

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Save, Cloud, MessageCircle, Smartphone, QrCode, Globe, CheckCircle, XCircle, Loader2, Zap, BrainCircuit, ExternalLink, Key, Database, Flame } from 'lucide-react';
+import { Save, Cloud, MessageCircle, Smartphone, QrCode, Globe, CheckCircle, XCircle, Loader2, Zap, BrainCircuit, ExternalLink, Key, Database, Flame, Workflow, DollarSign, CreditCard } from 'lucide-react';
 import { AppSettings } from '../types';
 import { validateConnection } from '../services/whatsappService';
 
@@ -175,7 +175,109 @@ const Settings: React.FC<SettingsProps> = ({ settings, onSave }) => {
           </div>
         </div>
 
-        {/* 2. Firebase Database */}
+        {/* 2. Automação n8n */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+           <div className="bg-pink-50 p-6 border-b border-pink-100 flex justify-between items-center">
+             <div className="flex items-center gap-3">
+                <div className="bg-pink-100 p-2 rounded-lg">
+                  <Workflow className="w-6 h-6 text-pink-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-pink-900">Automação (n8n)</h3>
+                  <p className="text-sm text-pink-700">Conecte seus workflows para mineração real de dados.</p>
+                </div>
+             </div>
+          </div>
+          <div className="p-8 grid grid-cols-1 gap-6">
+             <div>
+                <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Webhook Mineração de Leads (N8N_LEADS_WEBHOOK_URL)</label>
+                <input
+                  type="text"
+                  name="n8nLeadsWebhookUrl"
+                  value={formData.n8nLeadsWebhookUrl || ''}
+                  onChange={handleChange}
+                  placeholder="https://seu-n8n.com/webhook/..."
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-500 outline-none font-mono text-sm bg-slate-50"
+                />
+             </div>
+             <div>
+                <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Webhook Mineração de Leilões (N8N_LEILAO_WEBHOOK_URL)</label>
+                <input
+                  type="text"
+                  name="n8nAuctionsWebhookUrl"
+                  value={formData.n8nAuctionsWebhookUrl || ''}
+                  onChange={handleChange}
+                  placeholder="https://seu-n8n.com/webhook/..."
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-500 outline-none font-mono text-sm bg-slate-50"
+                />
+             </div>
+          </div>
+        </div>
+
+        {/* 3. Portas de Venda (Monetização) NOVO */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+           <div className="bg-yellow-50 p-6 border-b border-yellow-100 flex justify-between items-center">
+             <div className="flex items-center gap-3">
+                <div className="bg-yellow-100 p-2 rounded-lg">
+                  <DollarSign className="w-6 h-6 text-yellow-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-yellow-900">Configuração de Vendas (Admin)</h3>
+                  <p className="text-sm text-yellow-700">Defina os links de pagamento para os botões "Comprar Plano".</p>
+                </div>
+             </div>
+          </div>
+          <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+             <div>
+                <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Link Checkout PRO</label>
+                <div className="relative">
+                    <CreditCard className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
+                    <input
+                    type="text"
+                    name="salesUrlPro"
+                    value={formData.salesUrlPro || ''}
+                    onChange={handleChange}
+                    placeholder="https://pay.kiwify.com.br/..."
+                    className="w-full pl-9 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none font-mono text-sm bg-slate-50"
+                    />
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">Link direto para o checkout do seu gateway (Stripe, Kiwify, etc).</p>
+             </div>
+             
+             <div>
+                <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Link Checkout ENTERPRISE</label>
+                <div className="relative">
+                    <CreditCard className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
+                    <input
+                    type="text"
+                    name="salesUrlEnterprise"
+                    value={formData.salesUrlEnterprise || ''}
+                    onChange={handleChange}
+                    placeholder="https://pay.hotmart.com/..."
+                    className="w-full pl-9 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none font-mono text-sm bg-slate-50"
+                    />
+                </div>
+             </div>
+
+             <div className="md:col-span-2">
+                <label className="block text-xs font-bold uppercase text-slate-500 mb-2">WhatsApp de Vendas/Suporte</label>
+                <div className="relative">
+                    <Smartphone className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
+                    <input
+                    type="text"
+                    name="salesContactPhone"
+                    value={formData.salesContactPhone || ''}
+                    onChange={handleChange}
+                    placeholder="5511999999999"
+                    className="w-full pl-9 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none font-mono text-sm bg-slate-50"
+                    />
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">Usado como fallback se não houver link de checkout.</p>
+             </div>
+          </div>
+        </div>
+
+        {/* 4. Firebase Database */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
            <div className="bg-orange-50 p-6 border-b border-orange-100 flex justify-between items-center">
              <div className="flex items-center gap-3">
@@ -262,7 +364,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onSave }) => {
           </div>
         </div>
 
-        {/* 3. Google Gemini */}
+        {/* 5. Google Gemini */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
            <div className="bg-purple-50 p-6 border-b border-purple-100 flex justify-between items-center">
              <div className="flex items-center gap-3">
@@ -296,7 +398,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onSave }) => {
           </div>
         </div>
 
-        {/* 4. OneDrive Configuration */}
+        {/* 6. OneDrive Configuration */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="bg-blue-50 p-6 border-b border-blue-100 flex justify-between items-center">
              <div className="flex items-center gap-3">

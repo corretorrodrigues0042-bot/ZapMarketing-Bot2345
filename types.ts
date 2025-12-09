@@ -8,6 +8,11 @@ export interface Contact {
   lastInteraction?: string;
   value?: number; // Valor potencial da venda
   source?: string;
+  
+  // NOVOS CAMPOS PARA AUTOMATIZAÇÃO
+  autoReplyEnabled?: boolean; // Se true, o bot responde sozinho este cliente
+  linkedCampaignId?: string; // Qual imóvel este cliente está interessado (para contexto da IA)
+  lastMessageId?: string; // Para evitar respostas duplicadas
 }
 
 export interface DriveFile {
@@ -42,6 +47,16 @@ export interface Campaign {
   progress: number;
 }
 
+export interface WhatsAppMessage {
+  id: string;
+  chatId: string;
+  senderId: string; // Quem enviou
+  text: string;
+  timestamp: number;
+  fromMe: boolean;
+  type: 'text' | 'image' | 'document' | 'audio';
+}
+
 export interface AppSettings {
   // Campos simplificados para o usuário
   greenApiInstanceId: string;
@@ -57,6 +72,19 @@ export interface AppSettings {
   firebaseStorageBucket?: string;
   firebaseMessagingSenderId?: string;
   firebaseAppId?: string;
+
+  // Configuração de Automação n8n
+  n8nLeadsWebhookUrl?: string;
+  n8nAuctionsWebhookUrl?: string;
+
+  // PORTAS DE VENDA (Checkout Gateways)
+  salesUrlPro?: string; // Link para Stripe/Hotmart Pro
+  salesUrlEnterprise?: string; // Link para Stripe/Hotmart Enterprise
+  salesContactPhone?: string; // Telefone para dúvidas de vendas
+
+  // Configuração do Robô
+  botCheckInterval?: number; // Em segundos (ex: 10)
+  globalAutoReply?: boolean; // Liga/Desliga geral
 
   // Mantido para compatibilidade ou uso avançado (backend próprio)
   whatsappApiUrl: string;

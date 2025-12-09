@@ -130,18 +130,23 @@ const CampaignBuilder: React.FC<CampaignBuilderProps> = ({ settings, onCampaignC
            const id = c.phone.includes('@') ? c.phone : `${c.phone}@c.us`;
            return {
              id: id,
-             name: c.name || 'Sem Nome',
+             name: c.name || 'Lead Importado',
              phone: c.phone,
-             status: 'pending'
+             status: 'pending',
+             pipelineStage: 'new',
+             source: 'CSV/Import'
            };
         });
 
         if (newContacts.length > 0) {
-          // SALVA NO STORAGE
+          // SALVA NO STORAGE AUTOMATICAMENTE AO IMPORTAR
           await storageService.saveContactsBulk(userId, newContacts);
+          
+          // Recarrega para garantir
           const updatedContacts = await storageService.getContacts(userId);
           setContactsList(updatedContacts);
           
+          // Seleciona os novos contatos importados
           const newIds = new Set(selectedContacts);
           newContacts.forEach(c => newIds.add(c.id));
           setSelectedContacts(newIds);
@@ -200,6 +205,20 @@ const CampaignBuilder: React.FC<CampaignBuilderProps> = ({ settings, onCampaignC
       
       if (result.success) {
         successCount++;
+        
+        // --- ATUALIZAÇÃO AUTOMÁTICA DO CRM ---
+        // Move o contato para "Em Negociação" (contacted) e salva no histórico
+        const updatedContact: Contact = {
+            ...contact,
+            status: 'sent',
+            pipelineStage: 'contacted', // Move no Kanban
+            lastInteraction: new Date().toISOString()
+        };
+        await storageService.saveContact(userId, updatedContact);
+      } else {
+         // Marca como falha mas mantém no CRM
+         const failedContact: Contact = { ...contact, status: 'failed' };
+         await storageService.saveContact(userId, failedContact);
       }
 
       setSendingProgress(Math.round(((i + 1) / total) * 100));
@@ -210,7 +229,7 @@ const CampaignBuilder: React.FC<CampaignBuilderProps> = ({ settings, onCampaignC
     const newCampaign: Campaign = {
       id: Date.now().toString(),
       name: dossier.title,
-      dossier: dossier, // Saves the structured data
+      dossier: dossier, 
       description: generatedText,
       selectedFiles,
       targetContacts: Array.from(selectedContacts),
@@ -218,9 +237,8 @@ const CampaignBuilder: React.FC<CampaignBuilderProps> = ({ settings, onCampaignC
       progress: 100
     };
     
-    // CHAMADA DE CALLBACK QUE AGORA SALVA NO STORAGE VIA APP.TSX
     onCampaignCreated(newCampaign);
-    alert(`Campanha Finalizada! ${successCount} mensagens entregues.`);
+    alert(`Campanha Finalizada! ${successCount} mensagens entregues e CRM atualizado.`);
     
     setStep(1);
     setGeneratedText('');
@@ -453,7 +471,7 @@ const CampaignBuilder: React.FC<CampaignBuilderProps> = ({ settings, onCampaignC
           </div>
         )}
 
-        {/* Step 2: Audience (Mantido simplificado para focar na mudança principal) */}
+        {/* Step 2: Audience */}
         {step === 2 && (
           <div className="flex-1 p-8 flex flex-col">
             <div className="flex justify-between items-end mb-6">
@@ -481,6 +499,7 @@ const CampaignBuilder: React.FC<CampaignBuilderProps> = ({ settings, onCampaignC
                         <th className="p-4 w-12"><input type="checkbox" onChange={(e) => setSelectedContacts(e.target.checked ? new Set(contactsList.map(c=>c.id)) : new Set())} /></th>
                         <th className="p-4">Nome</th>
                         <th className="p-4">Telefone</th>
+                        <th className="p-4">Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 bg-white">
@@ -493,6 +512,11 @@ const CampaignBuilder: React.FC<CampaignBuilderProps> = ({ settings, onCampaignC
                           }} /></td>
                           <td className="p-4 font-medium text-slate-900">{c.name}</td>
                           <td className="p-4 text-slate-500 font-mono">{c.phone}</td>
+                           <td className="p-4">
+                               <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${c.pipelineStage === 'contacted' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>
+                                   {c.pipelineStage === 'contacted' ? 'Negociando' : 'Novo'}
+                               </span>
+                           </td>
                         </tr>
                       ))}
                     </tbody>

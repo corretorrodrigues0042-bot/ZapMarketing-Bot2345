@@ -33,7 +33,6 @@ async function retryWithBackoff<T>(fn: () => Promise<T>, retries = 3, delay = 20
 
 /**
  * GERA O PRIMEIRO DISPARO (Texto Curto e Persuasivo)
- * Agora retorna 3 variações para o usuário escolher.
  */
 export const generateMarketingCopy = async (
   dossier: PropertyDossier,
@@ -92,7 +91,7 @@ export const generateMarketingCopy = async (
 };
 
 /**
- * CÉREBRO DO BOT VENDEDOR (Simulador e Futura Automação)
+ * CÉREBRO DO BOT VENDEDOR (AUTOMÁTICO)
  */
 export const negotiateRealEstate = async (
   history: ChatMessage[],
@@ -103,30 +102,31 @@ export const negotiateRealEstate = async (
 
   if (!ai) return "Simulação: Preciso da API Key para negociar. (Configure em Ajustes)";
 
-  const lastMessage = history[history.length - 1].text;
+  // Pega as últimas mensagens para contexto imediato
+  const recentHistory = history.slice(-10);
+  const lastUserMsg = recentHistory[recentHistory.length -1]?.text || "";
 
   const prompt = `
-    IDENTIDADE: Você é um Corretor de Imóveis Sênior, especialista em negociação de alto padrão.
-    OBJETIVO: Agendar uma visita. Não venda o imóvel pelo chat, venda a VISITA.
+    IDENTIDADE: Você é um Corretor de Imóveis Sênior (IA Autônoma).
+    MISSÃO: Atender o cliente no WhatsApp, tirar dúvidas sobre o imóvel e AGENDAR VISITA.
     
-    DADOS DO IMÓVEL (DOSSIÊ):
+    IMÓVEL EM PAUTA:
     - Título: ${dossier.title}
     - Preço: ${dossier.price}
     - Local: ${dossier.location}
-    - Detalhes: ${dossier.details}
+    - Specs: ${dossier.details}
 
-    TÉCNICAS OBRIGATÓRIAS:
-    1. SPIN SELLING: Se o cliente der abertura, faça perguntas de situação ("Hoje você mora de aluguel ou próprio?").
-    2. ANCORAGEM: Se perguntarem o preço, fale 2 qualidades do imóvel ANTES de falar o valor.
-    3. DOUBLE BIND (Duplo Vínculo): Nunca pergunte "quer visitar?". Pergunte "Prefere visitar terça pela manhã ou quinta à tarde?".
-    4. ESCASSEZ: Sutilmente mencione que a agenda de visitas está cheia.
+    DIRETRIZES DE COMPORTAMENTO:
+    1. Responda de forma CURTA e NATURAL (pareça humano digitando no zap).
+    2. NUNCA invente dados. Se não souber (ex: valor do IPTU se não tiver nas specs), diga "Vou verificar essa informação exata e te retorno", mas continue a conversa.
+    3. FOCO TOTAL NO AGENDAMENTO: Sempre tente converter a dúvida em uma visita.
+       Ex: "Tem 2 vagas sim. Quer ir ver se cabem seus carros? Tenho horário amanhã."
+    4. ANCORAGEM: Se pedirem desconto, valorize o imóvel antes.
     
-    HISTÓRICO DA CONVERSA:
-    ${history.map(h => `${h.role === 'user' ? 'CLIENTE' : 'VOCÊ'}: ${h.text}`).join('\n')}
+    HISTÓRICO RECENTE:
+    ${recentHistory.map(h => `${h.role === 'user' ? 'CLIENTE' : 'VOCÊ'}: ${h.text}`).join('\n')}
     
-    CLIENTE DISSE POR ÚLTIMO: "${lastMessage}"
-    
-    Responda como o Corretor (curto, direto, estilo WhatsApp, use emojis moderados).
+    Responda apenas com a mensagem a ser enviada. Sem aspas.
   `;
 
   try {
@@ -134,11 +134,53 @@ export const negotiateRealEstate = async (
       model: 'gemini-2.5-flash',
       contents: prompt,
     }));
-    return response.text || "Erro na IA.";
+    return response.text || "Olá, posso ajudar com mais informações sobre este imóvel?";
   } catch (e) {
-    return "Desculpe, estou em atendimento agora. Já te respondo.";
+    return "Oi! Desculpe, tive um problema de conexão. Já te respondo.";
   }
 };
+
+/**
+ * DETECTOR DE INTENÇÃO E AGENDAMENTO (NOVO)
+ * Analisa a última mensagem do usuário para ver se ele quer agendar ou parar.
+ */
+export const detectIntentAndSchedule = async (
+    lastUserMessage: string,
+    apiKeyOverride?: string
+): Promise<{
+    intent: 'SCHEDULE_VISIT' | 'STOP_BOT' | 'INFO_REQUEST' | 'NONE';
+    extractedDate?: string; // Formato ISO ou descritivo
+    summary?: string;
+}> => {
+    const ai = getAiClient(apiKeyOverride);
+    if (!ai) return { intent: 'NONE' };
+
+    const prompt = `
+        Analise a mensagem do cliente imobiliário no WhatsApp.
+        Mensagem: "${lastUserMessage}"
+        
+        Classifique a INTENÇÃO em uma das categorias:
+        - SCHEDULE_VISIT: Cliente sugeriu dia/hora, disse "pode ser", "vamos marcar", "amanhã às 15h".
+        - STOP_BOT: Cliente pediu para parar, xingou, disse que já comprou ou não tem interesse.
+        - INFO_REQUEST: Fez uma pergunta sobre o imóvel.
+        - NONE: Outros (saudação, conversa fiada).
+        
+        Se for SCHEDULE_VISIT, extraia a data/hora sugerida para o campo "extractedDate" (tente padronizar ou repita o texto dele ex: "Amanhã 14h").
+        
+        Retorne JSON: { "intent": "...", "extractedDate": "...", "summary": "..." }
+    `;
+
+    try {
+        const response = await retryWithBackoff<GenerateContentResponse>(() => ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: { responseMimeType: "application/json" }
+        }));
+        return JSON.parse(response.text || '{}');
+    } catch (e) {
+        return { intent: 'NONE' };
+    }
+}
 
 /**
  * MÓDULO DE ATUALIZAÇÃO MENSAL COM PROPRIETÁRIO
@@ -176,7 +218,7 @@ export const generateOwnerUpdateMessage = async (
 };
 
 /**
- * ANALISA A RESPOSTA DO PROPRIETÁRIO (Para saber se arquiva ou não)
+ * ANALISA A RESPOSTA DO PROPRIETÁRIO
  */
 export const analyzeOwnerResponse = async (
   responseText: string, 
@@ -212,7 +254,7 @@ export const analyzeOwnerResponse = async (
 };
 
 /**
- * ANALISADOR DE EDITAIS E PROCESSOS JURÍDICOS (NOVO)
+ * ANALISADOR DE EDITAIS E PROCESSOS JURÍDICOS
  */
 export const analyzeLegalText = async (
   rawText: string,
@@ -272,7 +314,6 @@ export const analyzeLegalText = async (
   }
 };
 
-// ... (Mantenha as funções de parseContacts)
 export const parseContactsFromRawText = async (rawText: string, apiKeyOverride?: string): Promise<{ name: string; phone: string }[]> => {
   const ai = getAiClient(apiKeyOverride);
   if (!ai) throw new Error("API Key required");
@@ -292,56 +333,120 @@ export const parseContactsFromRawText = async (rawText: string, apiKeyOverride?:
   return JSON.parse(response.text || '[]');
 };
 
+// --- FUNÇÃO ROBUSTA PARA CHAMAR O N8N ---
+const fetchFromN8N = async (url: string, payload: any) => {
+  console.log("🚀 Iniciando Mineração Real via n8n:", url);
+  console.log("Payload:", payload);
+
+  const controller = new AbortController();
+  // Aumentado para 60 segundos para permitir mineração profunda no n8n
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`Erro no n8n: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log("✅ Sucesso n8n:", data);
+    
+    // Suporte para diferentes estruturas de retorno do n8n (Array direto ou objeto { data: [...] })
+    return Array.isArray(data) ? data : (data.data || []);
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      console.error("⏳ Timeout: O n8n demorou mais de 60s para responder.");
+    } else {
+      console.error("❌ Erro na integração n8n:", error);
+    }
+    return null; 
+  }
+}
+
 export const mineLeadsWithAI = async (
   niche: string, 
   city: string, 
   strategy: 'business' | 'comments' | 'groups',
   platform: 'facebook' | 'instagram' | 'threads' | 'legal',
-  apiKeyOverride?: string
+  apiKeyOverride?: string,
+  n8nLeadsWebhookUrl?: string
 ): Promise<{ name: string; phone: string; source: string; description: string }[]> => {
-  const ai = getAiClient(apiKeyOverride);
-
-  // Se for busca jurídica, não gera leads fictícios, pois o foco são os links (Dorks).
-  if (platform === 'legal') {
-    return [];
+  
+  // 1. TENTATIVA VIA N8N (PRIORIDADE TOTAL PARA DADOS REAIS)
+  // Se a URL estiver configurada, usamos ela. Se falhar, NÃO cai para simulação da IA.
+  if (n8nLeadsWebhookUrl && platform !== 'legal') {
+    const n8nData = await fetchFromN8N(n8nLeadsWebhookUrl, { niche, city, platform, strategy });
+    if (n8nData) {
+      return n8nData;
+    } else {
+        // Se falhou o n8n e foi configurado, retornamos erro para o usuário verificar o n8n
+        // em vez de fingir dados com a IA.
+        return [{
+            name: "Erro na Mineração Real",
+            phone: "N/A",
+            source: "n8n",
+            description: "O n8n não retornou dados ou deu timeout. Verifique seu workflow."
+        }];
+    }
   }
+
+  // Fallback apenas se NÃO tiver URL configurada (Modo Manual/IA Assistente)
+  const ai = getAiClient(apiKeyOverride);
 
   if (!ai) {
      return [
-       { name: `Lead ${niche} - Exemplo`, phone: "5511999999999", source: platform.charAt(0).toUpperCase() + platform.slice(1), description: "Simulação sem API Key configurada" },
+       { name: `Configuração Necessária`, phone: "Sistema", source: "Erro", description: "Insira sua API Key em Configurações para realizar a mineração." },
      ];
   }
 
   let promptContext = "";
-  
-  if (platform === 'instagram') {
+  let baseRole = "OSINT (Open Source Intelligence) e Data Mining";
+
+  if (platform === 'legal') {
+    // BUSCA REAL DE LEILOEIROS (Auxílio IA para encontrar fontes, não dados finais)
+    baseRole = "Assistente Jurídico de Leilões";
     promptContext = `
-      PLATAFORMA: INSTAGRAM
-      Foco: Perfis que tem "Link na Bio" ou "WhatsApp na Bio" relacionados a "${niche}" em "${city}".
-      Identifique influenciadores locais, profissionais liberais ou pessoas pedindo info nos comentários.
-      Formato do Source: @usuario_insta
-    `;
-  } else if (platform === 'threads') {
-    promptContext = `
-      PLATAFORMA: THREADS (Meta)
-      Foco: Discussões ativas sobre "${niche}" em "${city}".
-      Pessoas engajadas em threads sobre o tema.
-      Formato do Source: @usuario_threads
+      OBJETIVO REAL: Encontrar Leiloeiros Oficiais, Varas Cíveis ou Sites de Leilão que atuam em "${city}".
+      Busque na sua base de conhecimento por entidades REAIS e OFICIAIS.
+      Não invente dados. Liste apenas o que é público e verificável.
     `;
   } else {
-    // Facebook
     promptContext = `
-      PLATAFORMA: FACEBOOK
-      Foco: Grupos e Comentários sobre "${niche}" em "${city}".
-      Pessoas que comentaram "tenho interesse", "valor" e deixaram telefone.
+      PLATAFORMA ALVO: ${platform.toUpperCase()}
+      CIDADE: "${city}"
+      NICHO: "${niche}"
+      
+      TAREFA: Listar EMPRESAS, IMOBILIÁRIAS, ADVOCACIA ou PROFISSIONAIS LIBERAIS que atuam publicamente neste nicho nesta cidade.
+      Use seu conhecimento de mundo para listar entidades REAIS.
     `;
   }
 
   const prompt = `
-    Aja como um minerador de dados (OSINT).
+    Atue como um ${baseRole}.
     ${promptContext}
-    Gere uma lista de 5 a 8 leads fictícios mas altamente realistas baseados nesse perfil.
-    Retorne JSON Array.
+    
+    Retorne uma lista JSON de 5 a 8 resultados REAIS.
+    
+    Estrutura obrigatória:
+    [
+      {
+        "name": "Nome da Empresa ou Leiloeiro Real",
+        "phone": "Telefone Público Comercial (ou '55 + DDD...' se não tiver exato)",
+        "source": "Fonte (Google Maps, Site Oficial, Instagram Business)",
+        "description": "Detalhes reais do negócio (Endereço aproximado ou especialidade)"
+      }
+    ]
   `;
 
   try {
@@ -366,8 +471,18 @@ export const mineLeadsWithAI = async (
     }));
     return JSON.parse(response.text || '[]');
   } catch (error) {
+    console.error("Erro na mineração:", error);
     return [];
   }
+};
+
+export const mineAuctionsWithN8N = async (
+    n8nAuctionsWebhookUrl: string,
+    niche: string, 
+    city: string
+): Promise<any[]> => {
+    // Timeout estendido e tratamento de erro incluídos no fetchFromN8N
+    return await fetchFromN8N(n8nAuctionsWebhookUrl, { niche, city }) || [];
 };
 
 export const generateOsintDorks = (niche: string, city: string, platform: 'facebook' | 'instagram' | 'threads' | 'legal') => {
@@ -375,7 +490,6 @@ export const generateOsintDorks = (niche: string, city: string, platform: 'faceb
   const whatsapp = encodeURIComponent(`( "whatsapp" OR "zap" OR "119" OR "contato" )`);
   
   if (platform === 'legal') {
-    // DORKS JURÍDICOS AVANÇADOS (LEILÕES, PENHORAS, PROCESSOS)
     return [
       {
         label: "Editais PDF (Tribunais)",

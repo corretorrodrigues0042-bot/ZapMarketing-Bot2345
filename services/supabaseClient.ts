@@ -1,23 +1,27 @@
-// --- MIGRAÇÃO PARA NEON DB ---
-// O Supabase foi removido conforme solicitado.
-// Este arquivo agora serve como placeholder para a futura conexão direta com o Neon (PostgreSQL).
+import { createClient } from '@supabase/supabase-js';
 
-export const isSupabaseConfigured = false;
-export const supabase = null;
-
-// Função segura para ler variáveis de ambiente sem quebrar o app
-const getEnvVar = (key: string) => {
+// Função segura para pegar variáveis de ambiente
+const getEnv = (key: string) => {
   try {
     // @ts-ignore
-    return import.meta.env?.[key] || '';
+    return import.meta?.env?.[key] || '';
   } catch (e) {
     return '';
   }
 };
 
-export const neonConfig = {
-    connectionString: getEnvVar('VITE_DATABASE_URL'), // URL do Neon
-    ssl: true
-};
+const supabaseUrl = getEnv('VITE_SUPABASE_URL');
+const supabaseAnonKey = getEnv('VITE_SUPABASE_ANON_KEY');
 
-console.log("🚀 Sistema migrado para Arquitetura Neon/Local (Supabase removido).");
+export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
+
+// Cria o cliente apenas se as chaves existirem
+export const supabase = isSupabaseConfigured 
+  ? createClient(supabaseUrl, supabaseAnonKey) 
+  : null;
+
+if (isSupabaseConfigured) {
+    console.log("✅ Supabase Conectado.");
+} else {
+    console.log("⚠️ Supabase não configurado (Faltam VITE_SUPABASE_URL e Key). Usando modo LocalStorage.");
+}

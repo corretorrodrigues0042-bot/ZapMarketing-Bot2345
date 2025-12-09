@@ -17,8 +17,12 @@ const getSettingsFromStorage = () => {
 const settings = getSettingsFromStorage();
 
 const getEnv = (envKey: string, settingKey: string) => {
-  // @ts-ignore
-  const envVal = import.meta.env[envKey];
+  let envVal = '';
+  try {
+    // @ts-ignore
+    envVal = import.meta?.env?.[envKey];
+  } catch (e) {}
+
   if (envVal && !envVal.includes("SUA_API_KEY")) return envVal;
   
   // @ts-ignore

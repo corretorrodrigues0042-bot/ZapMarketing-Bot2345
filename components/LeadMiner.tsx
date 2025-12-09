@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Search, MessageSquare, Building2, Users, UserPlus, Loader2, ExternalLink, ShieldAlert, Database, Lock, Instagram, Facebook, AtSign, Gavel, Globe, Wifi, Image as ImageIcon, FileText, ArrowRight, BrainCircuit, Check, AlertTriangle, Plus } from 'lucide-react';
-import { mineLeadsWithAI, generateOsintDorks, analyzeLegalText } from '../services/geminiService';
+import { mineLeadsWithAI, generateOsintDorks, analyzeLegalText, mineAuctionsWithN8N } from '../services/geminiService';
 import { AppSettings, Lead, Contact, User } from '../types';
 import { storageService } from '../services/storageService';
 import { NavLink } from 'react-router-dom';
@@ -42,27 +42,51 @@ const LeadMiner: React.FC<LeadMinerProps> = ({ settings, user }) => {
   const [isAnalyzingLegal, setIsAnalyzingLegal] = useState(false);
   const [legalOpportunity, setLegalOpportunity] = useState<any>(null);
 
-  // PAYWALL BLOCK REMOVIDO - ACESSO LIBERADO
-
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!city) return;
     
-    // Se estiver na aba Legal, o nicho é fixo "imóvel", mas usamos o campo para tipo (apto, casa)
     const searchNiche = activeTab === 'legal' ? (niche || 'imóvel') : niche;
     if (activeTab === 'social' && !searchNiche) return;
 
     setIsMining(true);
     setLeads([]);
     setLegalOpportunity(null);
+    setDorks([]);
     
     const targetPlatform = activeTab === 'legal' ? 'legal' : platform;
+    
     setDorks(generateOsintDorks(searchNiche, city, targetPlatform));
 
     try {
-      // Se for social, roda a IA para leads. Se for legal, só gera os dorks (a IA é usada na etapa 2)
-      if (activeTab === 'social') {
-        const results = await mineLeadsWithAI(searchNiche, city, strategy, targetPlatform, settings.googleApiKey);
+      if (activeTab === 'legal' && settings.n8nAuctionsWebhookUrl) {
+         // --- MODO LEGAL VIA N8N ---
+         const auctionResults = await mineAuctionsWithN8N(settings.n8nAuctionsWebhookUrl, searchNiche, city);
+         
+         if (auctionResults && auctionResults.length > 0) {
+             const formatted = auctionResults.map((l, i) => ({
+                id: `auc-${Date.now()}-${i}`,
+                name: l.title || "Oportunidade Leilão",
+                phone: l.valuation || "N/A",
+                source: "N8N / Leilão",
+                description: `${l.address} - Lance Mín: ${l.minimumBid}`
+             }));
+             setLeads(formatted);
+         } else {
+             // Feedback claro para o usuário se o n8n falhar
+             alert("A automação n8n rodou, mas não retornou leilões novos no momento (ou deu timeout). Verifique o console ou use os links manuais abaixo.");
+         }
+      } else {
+        // --- MODO SOCIAL OU LEGAL SEM N8N ---
+        const results = await mineLeadsWithAI(
+            searchNiche, 
+            city, 
+            strategy, 
+            targetPlatform, 
+            settings.googleApiKey,
+            settings.n8nLeadsWebhookUrl
+        );
+        
         const formattedLeads: Lead[] = results.map((l, i) => ({
             id: `lead-${Date.now()}-${i}`,
             name: l.name,
@@ -72,8 +96,10 @@ const LeadMiner: React.FC<LeadMinerProps> = ({ settings, user }) => {
         }));
         setLeads(formattedLeads);
       }
+
     } catch (error) {
-      alert("Erro ao buscar leads. Verifique sua API Key.");
+      alert("Erro ao buscar dados. Verifique se o n8n está ativo e respondendo dentro de 60s.");
+      console.error(error);
     } finally {
       setIsMining(false);
     }
@@ -154,7 +180,7 @@ const LeadMiner: React.FC<LeadMinerProps> = ({ settings, user }) => {
             </h2>
             <p className="text-white/80 mt-2 max-w-2xl">
                 {activeTab === 'legal' 
-                    ? 'Use a IA para encontrar e analisar editais, leilões e processos com alto potencial de lucro.' 
+                    ? 'Conectado ao n8n para buscar editais reais. Use também a IA para analisar PDFs.' 
                     : 'Encontre clientes reais escondidos em comentários, bios e comunidades.'}
             </p>
         </div>
@@ -258,7 +284,7 @@ const LeadMiner: React.FC<LeadMinerProps> = ({ settings, user }) => {
                         className={`w-full py-3 text-white rounded-xl font-bold hover:opacity-90 transition-all flex items-center justify-center gap-2 bg-gradient-to-r ${getHeaderColors()}`}
                     >
                         {isMining ? <Loader2 className="animate-spin w-5 h-5" /> : <Search className="w-5 h-5" />}
-                        {isMining ? 'Processando...' : (activeTab === 'legal' ? 'Gerar Links de Busca' : 'Iniciar Mineração')}
+                        {isMining ? 'Processando...' : (activeTab === 'legal' ? 'Buscar Leilões (n8n)' : 'Iniciar Mineração (n8n)')}
                     </button>
                 </form>
 
@@ -363,7 +389,7 @@ const LeadMiner: React.FC<LeadMinerProps> = ({ settings, user }) => {
             )}
 
             {/* Leads List (Social) */}
-            {activeTab === 'social' && (
+            {leads.length > 0 && (
                 <div className="space-y-3">
                     {leads.map(lead => (
                         <div key={lead.id} className="bg-white p-4 rounded-xl border border-slate-200 flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-bottom-2">
@@ -371,6 +397,7 @@ const LeadMiner: React.FC<LeadMinerProps> = ({ settings, user }) => {
                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold bg-gradient-to-br ${
                                     lead.source.toLowerCase().includes('insta') ? 'from-pink-500 to-purple-600' :
                                     lead.source.toLowerCase().includes('threads') ? 'from-slate-800 to-black' :
+                                    lead.source.toLowerCase().includes('n8n') ? 'from-green-500 to-emerald-700' :
                                     'from-blue-500 to-blue-700'
                                 }`}>
                                     {lead.name.charAt(0)}
