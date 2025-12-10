@@ -1,5 +1,6 @@
+
 import React, { useState, useRef, useEffect } from 'react';
-import { Cloud, Wand2, Send, Monitor, FileSpreadsheet, Sparkles, Check, ChevronRight, Zap, Bot, Home, DollarSign, MapPin, User, Phone, Loader2, Target, MousePointerClick } from 'lucide-react';
+import { Cloud, Wand2, Send, Monitor, FileSpreadsheet, Sparkles, Check, ChevronRight, Zap, Bot, Home, DollarSign, MapPin, User, Phone, Loader2, Target, MousePointerClick, ShieldCheck } from 'lucide-react';
 import { Campaign, DriveFile, Contact, AppSettings, PropertyDossier } from '../types';
 import { storageService } from '../services/storageService';
 import { generateMarketingCopy, parseContactsFromRawText } from '../services/geminiService';
@@ -12,6 +13,10 @@ interface CampaignBuilderProps {
   onCampaignCreated: (campaign: Campaign) => void;
   userId: string;
 }
+
+// Helper para delay humano
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const getRandomDelay = (min = 15000, max = 45000) => Math.floor(Math.random() * (max - min + 1) + min);
 
 const CampaignBuilder: React.FC<CampaignBuilderProps> = ({ settings, onCampaignCreated, userId }) => {
   const navigate = useNavigate();
@@ -199,15 +204,23 @@ const CampaignBuilder: React.FC<CampaignBuilderProps> = ({ settings, onCampaignC
 
     for (let i = 0; i < total; i++) {
       const contact = targets[i];
-      setLogs(prev => [`Disparando para ${contact.name}...`, ...prev.slice(0, 4)]); 
+      setLogs(prev => [`⏳ Iniciando envio para ${contact.name}...`, ...prev.slice(0, 4)]); 
+
+      // ANTI-BLOQUEIO: DELAY VARIÁVEL
+      // Se não for o primeiro contato, espera um tempo aleatório
+      if (i > 0) {
+          const delay = getRandomDelay(15000, 45000); // 15 a 45 segundos
+          setLogs(prev => [`🛡️ Proteção Anti-Block: Aguardando ${Math.floor(delay/1000)}s...`, ...prev.slice(0, 4)]);
+          await sleep(delay);
+      }
       
       const result = await sendWhatsAppMessage(contact, generatedText, selectedFiles, settings);
       
       if (result.success) {
         successCount++;
+        setLogs(prev => [`✅ Enviado com sucesso para ${contact.name}`, ...prev.slice(0, 4)]);
         
         // --- ATUALIZAÇÃO AUTOMÁTICA DO CRM ---
-        // Move o contato para "Em Negociação" (contacted) e salva no histórico
         const updatedContact: Contact = {
             ...contact,
             status: 'sent',
@@ -216,7 +229,7 @@ const CampaignBuilder: React.FC<CampaignBuilderProps> = ({ settings, onCampaignC
         };
         await storageService.saveContact(userId, updatedContact);
       } else {
-         // Marca como falha mas mantém no CRM
+         setLogs(prev => [`❌ Falha ao enviar para ${contact.name}: ${result.error}`, ...prev.slice(0, 4)]);
          const failedContact: Contact = { ...contact, status: 'failed' };
          await storageService.saveContact(userId, failedContact);
       }
@@ -550,6 +563,11 @@ const CampaignBuilder: React.FC<CampaignBuilderProps> = ({ settings, onCampaignC
                 <div>
                    <h2 className="text-3xl font-bold text-slate-900">Disparar Oferta</h2>
                    <p className="text-slate-500 mt-2">O imóvel será ofertado para {selectedContacts.size} leads.</p>
+                   
+                   <div className="bg-blue-50 text-blue-800 p-3 rounded-lg text-xs mt-4 flex items-center gap-2 justify-center">
+                      <ShieldCheck className="w-4 h-4" />
+                      <strong>Proteção Anti-Bloqueio Ativa:</strong> O sistema aguardará intervalos variáveis (15s a 45s) entre cada envio.
+                   </div>
                 </div>
 
                 <div className="bg-slate-50 rounded-xl p-6 text-left border border-slate-200 space-y-3">
@@ -577,14 +595,14 @@ const CampaignBuilder: React.FC<CampaignBuilderProps> = ({ settings, onCampaignC
                   onClick={startCampaign}
                   className="w-full py-4 bg-green-600 text-white rounded-xl font-bold text-lg hover:bg-green-500 transition-all shadow-xl shadow-green-200 flex items-center justify-center gap-3 transform hover:-translate-y-1"
                 >
-                  <Send className="w-6 h-6" /> INICIAR DISPAROS
+                  <Send className="w-6 h-6" /> INICIAR DISPAROS SEGUROS
                 </button>
                 
                 <button onClick={() => setStep(2)} className="text-slate-400 text-sm hover:text-slate-600">Voltar e editar</button>
               </div>
             ) : (
               <div className="w-full max-w-lg space-y-6">
-                 <h3 className="text-2xl font-bold text-slate-800 animate-pulse">Trabalhando...</h3>
+                 <h3 className="text-2xl font-bold text-slate-800 animate-pulse">Enviando com Segurança...</h3>
                  
                  <div className="w-full h-4 bg-slate-100 rounded-full overflow-hidden">
                     <div className="h-full bg-blue-600 transition-all duration-300 ease-out" style={{ width: `${sendingProgress}%` }} />
@@ -600,6 +618,8 @@ const CampaignBuilder: React.FC<CampaignBuilderProps> = ({ settings, onCampaignC
                       <div key={i} className="border-b border-white/5 py-1">{log}</div>
                     ))}
                  </div>
+                 
+                 <p className="text-xs text-slate-500">Não feche a janela enquanto o processo estiver rodando.</p>
               </div>
             )}
           </div>

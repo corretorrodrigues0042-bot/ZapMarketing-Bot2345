@@ -58,14 +58,12 @@ export interface WhatsAppMessage {
 }
 
 export interface AppSettings {
-  // Campos simplificados para o usuário
+  // --- CONFIGURAÇÕES DO DESENVOLVEDOR (ADMIN) ---
   greenApiInstanceId: string;
   greenApiApiToken: string;
+  googleApiKey: string; // Gemini
   
-  // Configuração Manual da IA
-  googleApiKey: string;
-  
-  // Configuração Manual do Firebase (Banco de Dados)
+  // Firebase
   firebaseApiKey?: string;
   firebaseAuthDomain?: string;
   firebaseProjectId?: string;
@@ -73,26 +71,30 @@ export interface AppSettings {
   firebaseMessagingSenderId?: string;
   firebaseAppId?: string;
 
-  // Configuração de Automação n8n
+  // Google Calendar API
+  googleCalendarClientId?: string;
+  googleCalendarApiKey?: string;
+  googleCalendarId?: string; // ID da agenda (ex: primary ou email)
+
+  // Automação n8n
   n8nLeadsWebhookUrl?: string;
   n8nAuctionsWebhookUrl?: string;
 
-  // PORTAS DE VENDA (Checkout Gateways)
-  salesUrlPro?: string; // Link para Stripe/Hotmart Pro
-  salesUrlEnterprise?: string; // Link para Stripe/Hotmart Enterprise
-  salesContactPhone?: string; // Telefone para dúvidas de vendas
+  // --- CONFIGURAÇÕES PÚBLICAS/VENDAS ---
+  salesUrlPro?: string; 
+  salesUrlEnterprise?: string; 
+  salesContactPhone?: string; 
 
   // Configuração do Robô
   botCheckInterval?: number; // Em segundos (ex: 10)
   globalAutoReply?: boolean; // Liga/Desliga geral
 
-  // Mantido para compatibilidade ou uso avançado (backend próprio)
+  // Legado / Avançado
   whatsappApiUrl: string;
-  
   whatsappToken: string;
   onedriveClientId: string;
-  enableSimulation: boolean; // If true, mocks the sending
-  useCorsProxy: boolean; // If true, uses a proxy to bypass browser restrictions
+  enableSimulation: boolean; 
+  useCorsProxy: boolean; 
 }
 
 export interface Visit {
@@ -101,6 +103,7 @@ export interface Visit {
   date: string;
   notes: string;
   completed: boolean;
+  googleEventLink?: string; // Link direto para o Google Agenda
 }
 
 export interface User {
@@ -110,7 +113,7 @@ export interface User {
   plan: 'free' | 'pro' | 'enterprise';
   isAuthenticated: boolean;
   companyName?: string;
-  isAdmin?: boolean; // NOVO: Permite acesso ao painel de controle
+  isAdmin?: boolean; // Permite acesso ao painel de controle e configurações sensíveis
 }
 
 export interface Lead {

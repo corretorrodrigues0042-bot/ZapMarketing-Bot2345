@@ -1,14 +1,16 @@
+
 import React, { useState } from 'react';
-import { Save, Cloud, MessageCircle, Smartphone, QrCode, Globe, CheckCircle, XCircle, Loader2, Zap, BrainCircuit, ExternalLink, Key, Database, Flame, Workflow, DollarSign, CreditCard } from 'lucide-react';
-import { AppSettings } from '../types';
+import { Save, Cloud, MessageCircle, Smartphone, QrCode, Globe, CheckCircle, XCircle, Loader2, Zap, BrainCircuit, ExternalLink, Key, Database, Flame, Workflow, DollarSign, CreditCard, Lock, Calendar } from 'lucide-react';
+import { AppSettings, User } from '../types';
 import { validateConnection } from '../services/whatsappService';
 
 interface SettingsProps {
   settings: AppSettings;
   onSave: (newSettings: AppSettings) => void;
+  user: User; 
 }
 
-const Settings: React.FC<SettingsProps> = ({ settings, onSave }) => {
+const Settings: React.FC<SettingsProps> = ({ settings, onSave, user }) => {
   const [formData, setFormData] = useState<AppSettings>(settings);
   const [testStatus, setTestStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [testMessage, setTestMessage] = useState('');
@@ -45,7 +47,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onSave }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(formData);
-    alert('Configurações salvas! A página será recarregada para aplicar o Banco de Dados.');
+    alert('Configurações salvas!');
     window.location.reload();
   };
 
@@ -58,9 +60,9 @@ const Settings: React.FC<SettingsProps> = ({ settings, onSave }) => {
            <QrCode className="w-16 h-16 text-white" />
         </div>
         <div className="flex-1 text-center md:text-left">
-          <h2 className="text-3xl font-bold mb-2">Central de Conexões</h2>
+          <h2 className="text-3xl font-bold mb-2">Configurações do Sistema</h2>
           <p className="text-slate-300 text-lg leading-relaxed">
-            Configure abaixo as chaves do WhatsApp, Inteligência Artificial e Banco de Dados.
+             Gerencie as chaves de API e conexões externas.
           </p>
         </div>
       </div>
@@ -69,375 +71,152 @@ const Settings: React.FC<SettingsProps> = ({ settings, onSave }) => {
         
         {/* 1. WhatsApp Configuration */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="bg-green-50 p-6 border-b border-green-100 flex justify-between items-center">
-             <div className="flex items-center gap-3">
+        <div className="bg-green-50 p-6 border-b border-green-100 flex justify-between items-center">
+            <div className="flex items-center gap-3">
                 <div className="bg-green-100 p-2 rounded-lg">
-                  <Smartphone className="w-6 h-6 text-green-700" />
+                <Smartphone className="w-6 h-6 text-green-700" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-green-900">WhatsApp (API)</h3>
-                  <p className="text-sm text-green-700">Conexão via Green API (Plano Gratuito disponível).</p>
+                <h3 className="text-xl font-bold text-green-900">WhatsApp API (Green API)</h3>
+                <p className="text-sm text-green-700">Credenciais de conexão.</p>
                 </div>
-             </div>
-             <a 
-                href="https://console.green-api.com" 
-                target="_blank" 
-                rel="noreferrer"
-                className="hidden md:flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition-colors shadow-sm"
-             >
-                Criar Conta Grátis <ExternalLink className="w-4 h-4" />
-             </a>
-          </div>
-
-          <div className="p-8 space-y-6">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                <p className="text-sm text-blue-800">
-                    <strong>Como usar Grátis:</strong> No site da Green API, crie uma conta e selecione o plano <strong>"Developer"</strong>. Ele é gratuito para testes e pequenos volumes. Copie o <strong>IdInstance</strong> e o <strong>ApiTokenInstance</strong> abaixo.
-                </p>
             </div>
+        </div>
 
+        <div className="p-8 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-xs font-bold uppercase text-slate-500 mb-2">IdInstance (ID da Instância)</label>
+            <div>
+                <label className="block text-xs font-bold uppercase text-slate-500 mb-2">IdInstance</label>
                 <input
-                  type="text"
-                  name="greenApiInstanceId"
-                  value={formData.greenApiInstanceId || ''}
-                  onChange={handleChange}
-                  placeholder="Ex: 1101823901"
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-mono text-sm bg-slate-50 transition-all"
+                type="text"
+                name="greenApiInstanceId"
+                value={formData.greenApiInstanceId || ''}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl font-mono text-sm bg-slate-50"
                 />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase text-slate-500 mb-2">ApiTokenInstance (Token)</label>
-                <input
-                  type="password"
-                  name="greenApiApiToken"
-                  value={formData.greenApiApiToken || ''}
-                  onChange={handleChange}
-                  placeholder="Cole seu token aqui..."
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-mono text-sm bg-slate-50 transition-all"
-                />
-              </div>
             </div>
 
-             {/* Mobile Button */}
-             <a 
-                href="https://console.green-api.com" 
-                target="_blank" 
-                rel="noreferrer"
-                className="md:hidden w-full flex items-center justify-center gap-2 bg-green-100 text-green-800 px-4 py-3 rounded-xl text-sm font-bold hover:bg-green-200"
-             >
-                Obter Chaves na Green API <ExternalLink className="w-4 h-4" />
-             </a>
+            <div>
+                <label className="block text-xs font-bold uppercase text-slate-500 mb-2">ApiTokenInstance</label>
+                <input
+                type="password"
+                name="greenApiApiToken"
+                value={formData.greenApiApiToken || ''}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-slate-200 rounded-xl font-mono text-sm bg-slate-50"
+                />
+            </div>
+            </div>
 
             <div className="flex flex-col sm:flex-row items-center gap-4 pt-4 border-t border-slate-100">
-               <button
-                  type="button"
-                  onClick={handleTestConnection}
-                  disabled={testStatus === 'loading' || !formData.greenApiInstanceId || !formData.greenApiApiToken}
-                  className="w-full sm:w-auto px-6 py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform active:scale-95"
+            <button
+                type="button"
+                onClick={handleTestConnection}
+                className="w-full sm:w-auto px-6 py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 flex items-center justify-center gap-2"
                 >
-                  {testStatus === 'loading' ? (
-                    <><Loader2 className="w-5 h-5 animate-spin" /> Verificando...</>
-                  ) : (
-                    <><Zap className="w-5 h-5" /> TESTAR CONEXÃO</>
-                  )}
+                {testStatus === 'loading' ? <Loader2 className="animate-spin" /> : <Zap className="w-4 h-4" />} TESTAR
                 </button>
-
-                {testStatus === 'success' && (
-                  <span className="flex items-center gap-2 text-green-600 font-bold bg-green-50 px-4 py-2 rounded-lg animate-in fade-in slide-in-from-left-4">
-                    <CheckCircle className="w-5 h-5" /> {testMessage}
-                  </span>
-                )}
-                
-                {testStatus === 'error' && (
-                  <span className="flex items-center gap-2 text-red-600 font-bold bg-red-50 px-4 py-2 rounded-lg animate-in fade-in slide-in-from-left-4">
-                    <XCircle className="w-5 h-5" /> {testMessage}
-                  </span>
-                )}
+                {testMessage && <span className="text-sm font-bold text-slate-600">{testMessage}</span>}
             </div>
             
             <div className="flex items-center gap-2 mt-2">
                 <input
-                  id="useCorsProxy"
-                  name="useCorsProxy"
-                  type="checkbox"
-                  checked={formData.useCorsProxy}
-                  onChange={handleChange}
-                  className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-600"
-                />
-                <label htmlFor="useCorsProxy" className="text-sm text-slate-600 flex items-center gap-1 cursor-pointer select-none">
-                   <Globe className="w-3 h-3" /> Usar Proxy (Ative se der erro de CORS na versão Grátis)
-                </label>
-            </div>
-          </div>
-        </div>
-
-        {/* 2. Automação n8n */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-           <div className="bg-pink-50 p-6 border-b border-pink-100 flex justify-between items-center">
-             <div className="flex items-center gap-3">
-                <div className="bg-pink-100 p-2 rounded-lg">
-                  <Workflow className="w-6 h-6 text-pink-600" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-pink-900">Automação (n8n)</h3>
-                  <p className="text-sm text-pink-700">Conecte seus workflows para mineração real de dados.</p>
-                </div>
-             </div>
-          </div>
-          <div className="p-8 grid grid-cols-1 gap-6">
-             <div>
-                <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Webhook Mineração de Leads (N8N_LEADS_WEBHOOK_URL)</label>
-                <input
-                  type="text"
-                  name="n8nLeadsWebhookUrl"
-                  value={formData.n8nLeadsWebhookUrl || ''}
-                  onChange={handleChange}
-                  placeholder="https://seu-n8n.com/webhook/..."
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-500 outline-none font-mono text-sm bg-slate-50"
-                />
-             </div>
-             <div>
-                <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Webhook Mineração de Leilões (N8N_LEILAO_WEBHOOK_URL)</label>
-                <input
-                  type="text"
-                  name="n8nAuctionsWebhookUrl"
-                  value={formData.n8nAuctionsWebhookUrl || ''}
-                  onChange={handleChange}
-                  placeholder="https://seu-n8n.com/webhook/..."
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-500 outline-none font-mono text-sm bg-slate-50"
-                />
-             </div>
-          </div>
-        </div>
-
-        {/* 3. Portas de Venda (Monetização) NOVO */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-           <div className="bg-yellow-50 p-6 border-b border-yellow-100 flex justify-between items-center">
-             <div className="flex items-center gap-3">
-                <div className="bg-yellow-100 p-2 rounded-lg">
-                  <DollarSign className="w-6 h-6 text-yellow-600" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-yellow-900">Configuração de Vendas (Admin)</h3>
-                  <p className="text-sm text-yellow-700">Defina os links de pagamento para os botões "Comprar Plano".</p>
-                </div>
-             </div>
-          </div>
-          <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-             <div>
-                <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Link Checkout PRO</label>
-                <div className="relative">
-                    <CreditCard className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
-                    <input
-                    type="text"
-                    name="salesUrlPro"
-                    value={formData.salesUrlPro || ''}
-                    onChange={handleChange}
-                    placeholder="https://pay.kiwify.com.br/..."
-                    className="w-full pl-9 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none font-mono text-sm bg-slate-50"
-                    />
-                </div>
-                <p className="text-[10px] text-slate-400 mt-1">Link direto para o checkout do seu gateway (Stripe, Kiwify, etc).</p>
-             </div>
-             
-             <div>
-                <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Link Checkout ENTERPRISE</label>
-                <div className="relative">
-                    <CreditCard className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
-                    <input
-                    type="text"
-                    name="salesUrlEnterprise"
-                    value={formData.salesUrlEnterprise || ''}
-                    onChange={handleChange}
-                    placeholder="https://pay.hotmart.com/..."
-                    className="w-full pl-9 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none font-mono text-sm bg-slate-50"
-                    />
-                </div>
-             </div>
-
-             <div className="md:col-span-2">
-                <label className="block text-xs font-bold uppercase text-slate-500 mb-2">WhatsApp de Vendas/Suporte</label>
-                <div className="relative">
-                    <Smartphone className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
-                    <input
-                    type="text"
-                    name="salesContactPhone"
-                    value={formData.salesContactPhone || ''}
-                    onChange={handleChange}
-                    placeholder="5511999999999"
-                    className="w-full pl-9 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none font-mono text-sm bg-slate-50"
-                    />
-                </div>
-                <p className="text-[10px] text-slate-400 mt-1">Usado como fallback se não houver link de checkout.</p>
-             </div>
-          </div>
-        </div>
-
-        {/* 4. Firebase Database */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-           <div className="bg-orange-50 p-6 border-b border-orange-100 flex justify-between items-center">
-             <div className="flex items-center gap-3">
-                <div className="bg-orange-100 p-2 rounded-lg">
-                  <Flame className="w-6 h-6 text-orange-600" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-orange-900">Banco de Dados (Firebase)</h3>
-                  <p className="text-sm text-orange-700">Para salvar seus contatos e campanhas na nuvem.</p>
-                </div>
-             </div>
-          </div>
-          <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-             <div className="col-span-1 md:col-span-2 bg-orange-50 border border-orange-200 rounded-lg p-3 text-xs text-orange-800 mb-2">
-                <strong>Instrução:</strong> Copie os valores do arquivo de configuração do Firebase (onde você viu as chaves) e cole abaixo.
-             </div>
-
-             <div>
-                <label className="block text-xs font-bold uppercase text-slate-500 mb-1">apiKey</label>
-                <input
-                  type="text"
-                  name="firebaseApiKey"
-                  value={formData.firebaseApiKey || ''}
-                  onChange={handleChange}
-                  placeholder="Ex: AIzaSy..."
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none font-mono text-sm"
-                />
-             </div>
-             <div>
-                <label className="block text-xs font-bold uppercase text-slate-500 mb-1">authDomain</label>
-                <input
-                  type="text"
-                  name="firebaseAuthDomain"
-                  value={formData.firebaseAuthDomain || ''}
-                  onChange={handleChange}
-                  placeholder="Ex: projeto.firebaseapp.com"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none font-mono text-sm"
-                />
-             </div>
-             <div>
-                <label className="block text-xs font-bold uppercase text-slate-500 mb-1">projectId</label>
-                <input
-                  type="text"
-                  name="firebaseProjectId"
-                  value={formData.firebaseProjectId || ''}
-                  onChange={handleChange}
-                  placeholder="Ex: zapmarketing-bot"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none font-mono text-sm"
-                />
-             </div>
-             <div>
-                <label className="block text-xs font-bold uppercase text-slate-500 mb-1">storageBucket</label>
-                <input
-                  type="text"
-                  name="firebaseStorageBucket"
-                  value={formData.firebaseStorageBucket || ''}
-                  onChange={handleChange}
-                  placeholder="Ex: projeto.appspot.com"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none font-mono text-sm"
-                />
-             </div>
-             <div>
-                <label className="block text-xs font-bold uppercase text-slate-500 mb-1">messagingSenderId</label>
-                <input
-                  type="text"
-                  name="firebaseMessagingSenderId"
-                  value={formData.firebaseMessagingSenderId || ''}
-                  onChange={handleChange}
-                  placeholder="Ex: 123456789"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none font-mono text-sm"
-                />
-             </div>
-             <div>
-                <label className="block text-xs font-bold uppercase text-slate-500 mb-1">appId</label>
-                <input
-                  type="text"
-                  name="firebaseAppId"
-                  value={formData.firebaseAppId || ''}
-                  onChange={handleChange}
-                  placeholder="Ex: 1:12345:web:abcde"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none font-mono text-sm"
-                />
-             </div>
-          </div>
-        </div>
-
-        {/* 5. Google Gemini */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-           <div className="bg-purple-50 p-6 border-b border-purple-100 flex justify-between items-center">
-             <div className="flex items-center gap-3">
-                <div className="bg-purple-100 p-2 rounded-lg">
-                  <BrainCircuit className="w-6 h-6 text-purple-700" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-purple-900">Inteligência Artificial</h3>
-                  <p className="text-sm text-purple-700">Google Gemini (Cérebro do Robô).</p>
-                </div>
-             </div>
-             <a 
-                href="https://aistudio.google.com/app/apikey" 
-                target="_blank" 
-                rel="noreferrer"
-                className="hidden md:flex items-center gap-2 text-purple-700 hover:text-purple-900 font-bold text-sm"
-             >
-                Gerar Chave <ExternalLink className="w-4 h-4" />
-             </a>
-          </div>
-          <div className="p-8">
-             <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Google API Key</label>
-             <input
-                type="password"
-                name="googleApiKey"
-                value={formData.googleApiKey || ''}
+                id="useCorsProxy"
+                name="useCorsProxy"
+                type="checkbox"
+                checked={formData.useCorsProxy}
                 onChange={handleChange}
-                placeholder="Cole sua API Key do Google AI Studio..."
-                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none font-mono text-sm bg-slate-50"
-              />
-          </div>
+                className="h-4 w-4 rounded text-green-600"
+                />
+                <label htmlFor="useCorsProxy" className="text-sm text-slate-600 cursor-pointer">Usar Proxy (Correção CORS)</label>
+            </div>
+        </div>
         </div>
 
-        {/* 6. OneDrive Configuration */}
+        {/* 2. Google Services (Gemini & Calendar) */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="bg-blue-50 p-6 border-b border-blue-100 flex justify-between items-center">
-             <div className="flex items-center gap-3">
-                <div className="bg-blue-100 p-2 rounded-lg">
-                  <Cloud className="w-6 h-6 text-blue-700" />
+            <div className="bg-purple-50 p-6 border-b border-purple-100 flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                    <div className="bg-purple-100 p-2 rounded-lg">
+                        <BrainCircuit className="w-6 h-6 text-purple-700" />
+                    </div>
+                    <div>
+                        <h3 className="text-xl font-bold text-purple-900">Google Cloud (IA & Agenda)</h3>
+                        <p className="text-sm text-purple-700">Gemini AI e Google Calendar API.</p>
+                    </div>
+                </div>
+            </div>
+            <div className="p-8 grid grid-cols-1 gap-6">
+                <div>
+                    <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Google Gemini API Key</label>
+                    <input
+                        type="password"
+                        name="googleApiKey"
+                        value={formData.googleApiKey || ''}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 border border-slate-200 rounded-xl font-mono text-sm bg-slate-50"
+                    />
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+                        <div className="md:col-span-2 flex items-center gap-2 mb-2">
+                        <Calendar className="w-5 h-5 text-blue-600" />
+                        <h4 className="font-bold text-slate-700">Integração Google Agenda</h4>
+                        </div>
+                        <div>
+                        <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Client ID (OAuth)</label>
+                        <input
+                            type="text"
+                            name="googleCalendarClientId"
+                            value={formData.googleCalendarClientId || ''}
+                            onChange={handleChange}
+                            placeholder="ex: ...apps.googleusercontent.com"
+                            className="w-full px-4 py-3 border border-slate-200 rounded-xl font-mono text-sm bg-slate-50"
+                        />
+                        </div>
+                        <div>
+                        <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Calendar ID</label>
+                        <input
+                            type="text"
+                            name="googleCalendarId"
+                            value={formData.googleCalendarId || ''}
+                            onChange={handleChange}
+                            placeholder="primary"
+                            className="w-full px-4 py-3 border border-slate-200 rounded-xl font-mono text-sm bg-slate-50"
+                        />
+                        </div>
+                </div>
+            </div>
+        </div>
+
+        {/* 3. Firebase & N8N */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="bg-orange-50 p-6 border-b border-orange-100 flex items-center gap-3">
+                <div className="bg-orange-100 p-2 rounded-lg"><Database className="w-6 h-6 text-orange-600" /></div>
+                <h3 className="text-xl font-bold text-orange-900">Backend & Automação</h3>
+            </div>
+            <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                        <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Webhook N8N (Leads)</label>
+                        <input type="text" name="n8nLeadsWebhookUrl" value={formData.n8nLeadsWebhookUrl || ''} onChange={handleChange} className="w-full px-3 py-2 border border-slate-200 rounded-lg font-mono text-sm" />
+                </div>
+                {/* Firebase Fields Simplified */}
+                <div>
+                        <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Firebase API Key</label>
+                        <input type="text" name="firebaseApiKey" value={formData.firebaseApiKey || ''} onChange={handleChange} className="w-full px-3 py-2 border border-slate-200 rounded-lg font-mono text-sm" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-blue-900">Microsoft OneDrive</h3>
-                  <p className="text-sm text-blue-700">Para enviar fotos e documentos direto da nuvem.</p>
+                        <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Auth Domain</label>
+                        <input type="text" name="firebaseAuthDomain" value={formData.firebaseAuthDomain || ''} onChange={handleChange} className="w-full px-3 py-2 border border-slate-200 rounded-lg font-mono text-sm" />
                 </div>
-             </div>
-          </div>
-          <div className="p-8">
-             <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 text-sm text-blue-800">
-               <strong>Como configurar:</strong>
-               <ol className="list-decimal list-inside mt-2 space-y-1 ml-2">
-                 <li>Acesse o portal <a href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade" target="_blank" className="underline font-bold">Azure App Registrations</a>.</li>
-                 <li>Crie um "Novo Registro" (Single Tenant ou Multitenant).</li>
-                 <li>Em Autenticação, adicione URI de Redirecionamento SPA: <code>http://localhost:5173</code> (ou seu domínio).</li>
-                 <li>Copie o "ID do Aplicativo (Cliente)" e cole abaixo.</li>
-               </ol>
-             </div>
-            
-            <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Azure Client ID</label>
-            <div className="relative">
-                <Key className="absolute left-4 top-3.5 w-5 h-5 text-slate-400" />
-                <input
-                  type="text"
-                  name="onedriveClientId"
-                  value={formData.onedriveClientId}
-                  onChange={handleChange}
-                  placeholder="Cole seu Client ID aqui para ativar a integração..."
-                  className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm bg-slate-50"
-                />
+                    <div>
+                        <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Project ID</label>
+                        <input type="text" name="firebaseProjectId" value={formData.firebaseProjectId || ''} onChange={handleChange} className="w-full px-3 py-2 border border-slate-200 rounded-lg font-mono text-sm" />
+                </div>
             </div>
-          </div>
         </div>
 
-        {/* Simulation Mode */}
+        {/* MODO SIMULAÇÃO */}
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 flex items-start gap-4">
             <div className="mt-1">
                <input
@@ -451,20 +230,19 @@ const Settings: React.FC<SettingsProps> = ({ settings, onSave }) => {
             </div>
             <div>
                <label htmlFor="enableSimulation" className="font-bold text-slate-800 block cursor-pointer select-none">
-                  Ativar Modo de Simulação
+                  Modo Segurança (Simulação)
                </label>
                <p className="text-sm text-slate-600 mt-1">
-                 Se ativado, o sistema finge que enviou a mensagem (útil para testar sem gastar créditos ou banir número). 
-                 <br/><strong>Desmarque</strong> quando quiser enviar para valer.
+                 Se ativado, o sistema finge que enviou a mensagem. Use para testar novos fluxos sem enviar mensagens reais para seus clientes.
                </p>
             </div>
         </div>
 
         <button 
-          type="submit"
-          className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold text-lg hover:bg-blue-500 transition-all shadow-xl shadow-blue-900/20 flex items-center justify-center gap-2"
+        type="submit"
+        className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold text-lg hover:bg-blue-500 transition-all shadow-xl shadow-blue-900/20 flex items-center justify-center gap-2"
         >
-          <Save className="w-5 h-5" /> SALVAR TODAS AS CONFIGURAÇÕES
+        <Save className="w-5 h-5" /> SALVAR CONFIGURAÇÕES
         </button>
 
       </form>

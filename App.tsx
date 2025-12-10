@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { LayoutDashboard, Send, Settings as SettingsIcon, Calendar, Bot, Menu, X, LogOut, Crown, BarChart3, Search, Trello, BrainCircuit, Home, ArrowRight, AlertTriangle, Activity, CreditCard, Shield } from 'lucide-react';
@@ -321,6 +322,7 @@ const App = () => {
               <Settings 
                 settings={settings} 
                 onSave={handleSaveSettings} 
+                user={user}
               />
             } />
             <Route path="/admin" element={<AdminPanel />} />

@@ -11,6 +11,8 @@ import { storageService } from './storageService';
 // Cache simples para evitar responder a mesma mensagem 2x durante a sessão
 const processedMessageIds = new Set<string>();
 
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 export const autoBotService = {
     
     // Executa um ciclo completo de verificação
@@ -20,9 +22,6 @@ export const autoBotService = {
         contacts: Contact[], 
         campaigns: Campaign[]
     ): Promise<{ handled: number; actions: string[] }> => {
-        
-        // Se a automação global estiver desligada, aborta
-        // (Assumimos que existe uma flag global nos settings, se não, usamos true por default se ativado no componente)
         
         let actionsLog: string[] = [];
         let handledCount = 0;
@@ -46,7 +45,6 @@ export const autoBotService = {
                     processedMessageIds.add(lastMsg.id);
 
                     // 3. Analisa Intenção PRIMEIRO (Antes de responder)
-                    // Se o cliente disse "pare", a gente desliga o bot para ele.
                     const intentAnalysis = await detectIntentAndSchedule(lastMsg.text, settings.googleApiKey);
                     
                     if (intentAnalysis.intent === 'STOP_BOT') {
@@ -59,12 +57,24 @@ export const autoBotService = {
 
                     if (intentAnalysis.intent === 'SCHEDULE_VISIT') {
                         // Agendar Visita
+                        // Tenta gerar link do google calendar se configurado
+                        let googleLink = '';
+                        if (settings.googleCalendarId) {
+                            const calDate = intentAnalysis.extractedDate ? new Date(intentAnalysis.extractedDate) : new Date();
+                            const end = new Date(calDate.getTime() + 60*60000); // +1 hora
+                            
+                            // Formato básico para pré-preencher link do google calendar (sem auth backend)
+                            const formatGCal = (d: Date) => d.toISOString().replace(/-|:|\.\d\d\d/g, "");
+                            googleLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=Visita+Imóvel&dates=${formatGCal(calDate)}/${formatGCal(end)}&details=Agendado+via+ZapMarketing`;
+                        }
+
                         const visit: Visit = {
                             id: `visit-auto-${Date.now()}`,
                             contactId: contact.id,
                             date: intentAnalysis.extractedDate || new Date().toISOString(),
                             notes: `Agendado via IA: "${lastMsg.text}"`,
-                            completed: false
+                            completed: false,
+                            googleEventLink: googleLink
                         };
                         await storageService.saveVisit(userId, visit);
                         
@@ -72,7 +82,7 @@ export const autoBotService = {
                         const updatedContact = { 
                             ...contact, 
                             pipelineStage: 'scheduled' as const,
-                            autoReplyEnabled: false // Desliga bot após agendar para humano assumir? Ou mantem? Vamos desligar para evitar gafes.
+                            autoReplyEnabled: false // Desliga bot para humano assumir
                         };
                         await storageService.saveContact(userId, updatedContact);
                         
@@ -93,6 +103,10 @@ export const autoBotService = {
                             role: m.fromMe ? 'model' : 'user',
                             text: m.text
                         }));
+
+                        // Delay de "Pensamento" Humanizado (3 a 8 segundos)
+                        // Importante para não responder instantaneamente como robô
+                        await sleep(Math.random() * 5000 + 3000);
 
                         const aiResponse = await negotiateRealEstate(aiHistory, campaign.dossier, settings.googleApiKey);
                         
