@@ -2,67 +2,34 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getAnalytics } from "firebase/analytics";
 
-// --- CONFIGURAÇÃO HÍBRIDA (ENV + LOCALSTORAGE) ---
-// O código busca primeiro nas variáveis de ambiente (arquivo .env).
-// Se não achar, busca no LocalStorage (configurado via UI do app).
-
-const getSettingsFromStorage = () => {
-    try {
-        const saved = localStorage.getItem('zap_marketing_settings');
-        return saved ? JSON.parse(saved) : {};
-    } catch(e) { return {}; }
-}
-
-const settings = getSettingsFromStorage();
-
-const getEnv = (envKey: string, settingKey: string) => {
-  let envVal = '';
+// Helper function to safely access environment variables in Vite without type errors
+const getEnv = (key: string): string => {
   try {
-    // @ts-ignore
-    envVal = import.meta?.env?.[envKey];
-  } catch (e) {}
-
-  if (envVal && !envVal.includes("SUA_API_KEY")) return envVal;
-  
-  // @ts-ignore
-  return settings[settingKey];
-}
-
-const firebaseConfig = {
-  apiKey: getEnv("VITE_FIREBASE_API_KEY", "firebaseApiKey") || "SUA_API_KEY_AQUI",
-  authDomain: getEnv("VITE_FIREBASE_AUTH_DOMAIN", "firebaseAuthDomain") || "seu-projeto.firebaseapp.com",
-  projectId: getEnv("VITE_FIREBASE_PROJECT_ID", "firebaseProjectId") || "seu-projeto",
-  storageBucket: getEnv("VITE_FIREBASE_STORAGE_BUCKET", "firebaseStorageBucket") || "seu-projeto.appspot.com",
-  messagingSenderId: getEnv("VITE_FIREBASE_MESSAGING_SENDER_ID", "firebaseMessagingSenderId") || "123456789",
-  appId: getEnv("VITE_FIREBASE_APP_ID", "firebaseAppId") || "1:123456789:web:abcdef"
+    return (import.meta as any).env?.[key] || "";
+  } catch (e) {
+    return "";
+  }
 };
 
-// Verifica se as chaves reais foram carregadas
-export const isFirebaseConfigured = 
-  firebaseConfig.apiKey && 
-  firebaseConfig.apiKey !== "SUA_API_KEY_AQUI" &&
-  !firebaseConfig.apiKey.includes("UNDEFINED");
+// CONFIGURAÇÃO ZERADA / ENV
+const firebaseConfig = {
+  apiKey: getEnv("VITE_FIREBASE_API_KEY"),
+  authDomain: getEnv("VITE_FIREBASE_AUTH_DOMAIN"),
+  projectId: getEnv("VITE_FIREBASE_PROJECT_ID"),
+  storageBucket: getEnv("VITE_FIREBASE_STORAGE_BUCKET"),
+  messagingSenderId: getEnv("VITE_FIREBASE_MESSAGING_SENDER_ID"),
+  appId: getEnv("VITE_FIREBASE_APP_ID"),
+  measurementId: getEnv("VITE_FIREBASE_MEASUREMENT_ID")
+};
 
-let app;
-let auth;
-let db;
+// Inicializa o Firebase APENAS se houver API Key configurada
+// Caso contrário, exporta null para que o authService use o modo Local
+const app = firebaseConfig.apiKey ? initializeApp(firebaseConfig) : null;
 
-if (isFirebaseConfigured) {
-  try {
-    app = initializeApp(firebaseConfig);
-    auth = getAuth(app);
-    db = getFirestore(app);
-    console.log("🔥 Firebase Inicializado com sucesso!");
-  } catch (error) {
-    console.warn("Erro ao iniciar Firebase. Verifique as chaves.", error);
-    auth = null;
-    db = null;
-  }
-} else {
-  console.log("⚠️ Firebase não configurado. Rodando em MODO LOCAL (Offline).");
-  auth = null;
-  db = null;
-}
+export const auth = app ? getAuth(app) : null;
+export const db = app ? getFirestore(app) : null;
+export const analytics = app ? getAnalytics(app) : null;
 
-export { auth, db };
+export const isFirebaseConfigured = !!app;

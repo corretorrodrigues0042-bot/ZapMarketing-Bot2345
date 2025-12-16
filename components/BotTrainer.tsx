@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Bot, Send, User, Trash2, BrainCircuit, PlayCircle } from 'lucide-react';
 import { negotiateRealEstate } from '../services/geminiService';
@@ -8,14 +9,14 @@ interface BotTrainerProps {
 }
 
 const BotTrainer: React.FC<BotTrainerProps> = ({ settings }) => {
-    // Estado do Dossiê Temporário para o Treino
+    // Estado do Dossiê Limpo
     const [dossier, setDossier] = useState<PropertyDossier>({
-        title: 'Cobertura Duplex Vila Nova',
-        price: 'R$ 4.500.000',
-        location: 'Vila Nova Conceição, SP',
-        details: '350m², 4 suítes, piscina privativa, condomínio R$ 5k. Vista Parque Ibirapuera.',
-        ownerName: 'Dr. Roberto',
-        ownerPhone: '5511999999999',
+        title: '',
+        price: '',
+        location: '',
+        details: '',
+        ownerName: '',
+        ownerPhone: '',
         isAvailable: true
     });
 
@@ -43,10 +44,10 @@ const BotTrainer: React.FC<BotTrainerProps> = ({ settings }) => {
     const resetChat = () => setHistory([]);
 
     return (
-        <div className="max-w-6xl mx-auto h-[calc(100vh-120px)] flex gap-6">
+        <div className="max-w-6xl mx-auto h-[calc(100vh-120px)] flex flex-col md:flex-row gap-6">
             
             {/* Left: Configuration (The Dossier) */}
-            <div className="w-1/3 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-y-auto">
+            <div className="w-full md:w-1/3 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-y-auto">
                 <div className="mb-6 border-b border-slate-100 pb-4">
                     <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                         <BrainCircuit className="w-6 h-6 text-purple-600" /> Treinador de Bot
@@ -58,38 +59,31 @@ const BotTrainer: React.FC<BotTrainerProps> = ({ settings }) => {
 
                 <div className="space-y-4 flex-1">
                     <div>
-                        <label className="text-xs font-bold uppercase text-slate-500">Imóvel (Título)</label>
+                        <label className="text-xs font-bold uppercase text-slate-500 mb-1 block">Imóvel (Título)</label>
                         <input 
-                            className="w-full p-2 border border-slate-200 rounded text-sm font-semibold"
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-colors"
                             value={dossier.title}
                             onChange={e => setDossier({...dossier, title: e.target.value})}
+                            placeholder="Ex: Apartamento Jardins..."
                         />
                     </div>
                     <div>
-                        <label className="text-xs font-bold uppercase text-slate-500">Preço</label>
+                        <label className="text-xs font-bold uppercase text-slate-500 mb-1 block">Preço</label>
                         <input 
-                            className="w-full p-2 border border-slate-200 rounded text-sm"
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-colors"
                             value={dossier.price}
                             onChange={e => setDossier({...dossier, price: e.target.value})}
+                            placeholder="Ex: R$ 1.500.000"
                         />
                     </div>
                     <div>
-                        <label className="text-xs font-bold uppercase text-slate-500">Detalhes (Munição)</label>
+                        <label className="text-xs font-bold uppercase text-slate-500 mb-1 block">Detalhes (Munição)</label>
                         <textarea 
-                            className="w-full p-2 border border-slate-200 rounded text-sm h-32"
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-colors h-40 resize-none"
                             value={dossier.details}
                             onChange={e => setDossier({...dossier, details: e.target.value})}
+                            placeholder="Detalhes técnicos, pontos fortes, condomínio..."
                         />
-                    </div>
-                    
-                    <div className="bg-purple-50 p-4 rounded-xl border border-purple-100">
-                        <h4 className="font-bold text-purple-900 text-xs uppercase mb-2">Técnicas Ativas:</h4>
-                        <ul className="text-xs text-purple-700 space-y-1 list-disc pl-4">
-                            <li>Spin Selling (Perguntas de Situação)</li>
-                            <li>Ancoragem de Preço</li>
-                            <li>Double Bind (Terça ou Quinta?)</li>
-                            <li>Escassez de Agenda</li>
-                        </ul>
                     </div>
                 </div>
             </div>
@@ -137,7 +131,7 @@ const BotTrainer: React.FC<BotTrainerProps> = ({ settings }) => {
                     </button>
                     <form onSubmit={handleSendMessage} className="flex-1 flex gap-2">
                         <input 
-                            className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 focus:ring-2 focus:ring-blue-500 outline-none"
+                            className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-colors"
                             placeholder="Digite como um cliente..."
                             value={input}
                             onChange={e => setInput(e.target.value)}

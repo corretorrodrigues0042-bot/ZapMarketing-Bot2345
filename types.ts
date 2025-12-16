@@ -63,13 +63,14 @@ export interface AppSettings {
   greenApiApiToken: string;
   googleApiKey: string; // Gemini
   
-  // Firebase
-  firebaseApiKey?: string;
-  firebaseAuthDomain?: string;
-  firebaseProjectId?: string;
-  firebaseStorageBucket?: string;
-  firebaseMessagingSenderId?: string;
-  firebaseAppId?: string;
+  // Meta / Facebook API (Substitui Firebase Config Manual)
+  metaAccessToken?: string;
+  metaAdAccountId?: string;
+  metaPixelId?: string;
+
+  // Supabase (Novo)
+  supabaseUrl?: string;
+  supabaseAnonKey?: string;
 
   // Google Calendar API
   googleCalendarClientId?: string;

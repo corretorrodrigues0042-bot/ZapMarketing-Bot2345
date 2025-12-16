@@ -143,16 +143,32 @@ const App = () => {
   
   const [settings, setSettings] = useState<AppSettings>(() => {
     const saved = localStorage.getItem('zap_marketing_settings');
-    return saved ? JSON.parse(saved) : {
+    const defaultSettings = {
       greenApiInstanceId: '',
       greenApiApiToken: '',
       whatsappApiUrl: '',
       whatsappToken: '',
       onedriveClientId: '',
       googleApiKey: '', 
-      enableSimulation: true,
+      enableSimulation: false, 
       useCorsProxy: true,
+      // Supabase Configurado via Código
+      supabaseUrl: "https://bxdjwybiwpbaqjdhaubl.supabase.co",
+      supabaseAnonKey: "sb_publishable_AAeX-dKg1EPHcJR0zCdUww_B6axrYYY"
     };
+
+    if (saved) {
+        const parsed = JSON.parse(saved);
+        return { 
+          ...defaultSettings, 
+          ...parsed,
+          // Garante que se o usuário já tinha settings, o Supabase atualiza para o novo (se estiver vazio no salvo)
+          supabaseUrl: parsed.supabaseUrl || defaultSettings.supabaseUrl,
+          supabaseAnonKey: parsed.supabaseAnonKey || defaultSettings.supabaseAnonKey,
+          enableSimulation: false 
+        };
+    }
+    return defaultSettings;
   });
 
   useEffect(() => {
@@ -170,10 +186,12 @@ const App = () => {
   };
 
   const handleSaveSettings = (newSettings: AppSettings) => {
-    setSettings(newSettings);
-    localStorage.setItem('zap_marketing_settings', JSON.stringify(newSettings));
+    // Garante que a simulação continue desligada ao salvar
+    const safeSettings = { ...newSettings, enableSimulation: false };
+    setSettings(safeSettings);
+    localStorage.setItem('zap_marketing_settings', JSON.stringify(safeSettings));
     if (user?.uid) {
-        storageService.saveUserSettings(user.uid, newSettings);
+        storageService.saveUserSettings(user.uid, safeSettings);
     }
   };
 

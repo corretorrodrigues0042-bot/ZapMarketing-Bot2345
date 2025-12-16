@@ -1,83 +1,103 @@
+
 import { User } from '../types';
-import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { auth, isFirebaseConfigured } from './firebaseConfig';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, signOut } from 'firebase/auth';
 
 const STORAGE_KEY_SESSION = 'zap_marketing_session';
 
 export const authService = {
-  // --- REGISTRO (SUPABASE) ---
+  // --- REGISTRO ---
   register: async (name: string, email: string, password: string): Promise<{ user: User | null; error?: string }> => {
-    if (isSupabaseConfigured && supabase) {
-        const { data, error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-                data: { name } // Salva o nome nos metadados
-            }
-        });
-
-        if (error) return { user: null, error: error.message };
-        
-        if (data.user) {
-            // Cria o objeto de usuário local
-            const newUser: User = {
-                uid: data.user.id,
-                name: name,
-                email: email,
-                plan: 'free',
-                isAuthenticated: true,
-                isAdmin: false
-            };
-            authService.setSession(newUser);
-            return { user: newUser };
-        }
+    // 1. MODO LOCAL (Sem Firebase)
+    if (!isFirebaseConfigured || !auth) {
+        console.warn("Firebase não configurado. Usando Auth Local.");
+        const newUser: User = {
+            uid: `local-${Date.now()}`,
+            name: name,
+            email: email,
+            plan: 'free',
+            isAuthenticated: true,
+            isAdmin: true // No modo local, o usuário é admin
+        };
+        authService.setSession(newUser);
+        return { user: newUser };
     }
 
-    // Fallback Local (Sem Supabase)
-    return mockRegister(name, email, password);
+    // 2. MODO FIREBASE
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
+
+      await updateProfile(firebaseUser, { displayName: name });
+
+      const newUser: User = {
+        uid: firebaseUser.uid,
+        name: name,
+        email: email,
+        plan: 'free',
+        isAuthenticated: true,
+        isAdmin: false
+      };
+
+      authService.setSession(newUser);
+      return { user: newUser };
+    } catch (error: any) {
+      console.error("Erro no registro Firebase:", error);
+      let errorMessage = "Erro ao criar conta.";
+      if (error.code === 'auth/email-already-in-use') errorMessage = "Este e-mail já está em uso.";
+      if (error.code === 'auth/weak-password') errorMessage = "A senha é muito fraca (mínimo 6 caracteres).";
+      if (error.code === 'auth/invalid-email') errorMessage = "E-mail inválido.";
+      return { user: null, error: errorMessage };
+    }
   },
 
-  // --- LOGIN (SUPABASE) ---
+  // --- LOGIN ---
   login: async (email: string, password: string): Promise<{ user: User | null; error?: string }> => {
-    if (isSupabaseConfigured && supabase) {
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password
-        });
-
-        if (error) return { user: null, error: error.message };
-
-        if (data.user) {
-            // Busca o perfil completo (incluindo plano) da tabela 'profiles'
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', data.user.id)
-                .single();
-
-            const loggedUser: User = {
-                uid: data.user.id,
-                name: profile?.name || data.user.user_metadata.name || 'Usuário',
-                email: data.user.email || email,
-                plan: profile?.plan || 'free',
-                isAuthenticated: true,
-                isAdmin: profile?.is_admin || false
-            };
-            
-            authService.setSession(loggedUser);
-            return { user: loggedUser };
-        }
+    // 1. MODO LOCAL (Sem Firebase)
+    if (!isFirebaseConfigured || !auth) {
+        console.warn("Firebase não configurado. Usando Auth Local.");
+        const localUser: User = {
+            uid: 'local-admin',
+            name: 'Admin Local',
+            email: email,
+            plan: 'free',
+            isAuthenticated: true,
+            isAdmin: true
+        };
+        authService.setSession(localUser);
+        return { user: localUser };
     }
 
-    // Fallback Local
-    return mockLogin(email, password);
+    // 2. MODO FIREBASE
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
+
+      const loggedUser: User = {
+        uid: firebaseUser.uid,
+        name: firebaseUser.displayName || 'Usuário',
+        email: firebaseUser.email || email,
+        plan: 'free',
+        isAuthenticated: true,
+        isAdmin: false 
+      };
+
+      authService.setSession(loggedUser);
+      return { user: loggedUser };
+    } catch (error: any) {
+      console.error("Erro no login Firebase:", error);
+      let errorMessage = "Erro ao fazer login.";
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        errorMessage = "E-mail ou senha incorretos.";
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = "Muitas tentativas falhas. Tente novamente mais tarde.";
+      }
+      return { user: null, error: errorMessage };
+    }
   },
 
-  // --- LICENCIAMENTO (PORTA DE INTEGRAÇÃO ABERTA) ---
-  // Esta função atualiza o plano no Supabase sem cobrar valor agora.
-  // Futuramente, você pode integrar Stripe/Hotmart aqui antes de chamar o update.
+  // --- LICENCIAMENTO ---
   activateLicense: async (userId: string, licenseKey: string): Promise<{ success: boolean; plan?: string }> => {
-     
-     // 1. Lógica Aberta: Aceita chaves baseadas em prefixo ou chaves mestras
      const key = licenseKey.toUpperCase().trim();
      let newPlan: 'pro' | 'enterprise' | null = null;
      
@@ -85,40 +105,19 @@ export const authService = {
      if (key.startsWith('ENT') || key === 'AGENCIA2025') newPlan = 'enterprise';
 
      if (newPlan) {
-         if (isSupabaseConfigured && supabase) {
-             // Atualiza no Banco de Dados Real
-             const { error } = await supabase
-                .from('profiles')
-                .update({ plan: newPlan })
-                .eq('id', userId);
-            
-             if (error) {
-                 console.error("Erro ao ativar licença no DB:", error);
-                 return { success: false };
-             }
-
-             // Opcional: Registrar o uso da licença em uma tabela 'licenses' para auditoria futura
-             await supabase.from('licenses').insert({
-                 user_id: userId,
-                 key_used: key,
-                 plan_activated: newPlan
-             });
-         }
-
          // Atualiza Sessão Local
          const currentSession = authService.getSession();
          if (currentSession && currentSession.uid === userId) {
              const updatedUser = { ...currentSession, plan: newPlan as any };
              authService.setSession(updatedUser);
          }
-
          return { success: true, plan: newPlan };
      }
 
      return { success: false };
   },
 
-  // --- SESSÃO ---
+  // --- SESSÃO (LOCALSTORAGE) ---
   setSession: (user: User) => {
     localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(user));
   },
@@ -129,29 +128,13 @@ export const authService = {
   },
 
   logout: async () => {
-    if (isSupabaseConfigured && supabase) {
-        await supabase.auth.signOut();
+    try {
+      if (isFirebaseConfigured && auth) {
+        await signOut(auth);
+      }
+    } catch (error) {
+      console.error("Erro ao deslogar", error);
     }
     localStorage.removeItem(STORAGE_KEY_SESSION);
   }
-};
-
-// --- MOCKS (APENAS PARA USO LOCAL SE SUPABASE FALHAR) ---
-const mockRegister = async (name: string, email: string, password: string) => {
-    await new Promise(r => setTimeout(r, 500));
-    const newUser: User = { uid: `local-${Date.now()}`, name, email, plan: 'free', isAuthenticated: true, isAdmin: false };
-    authService.setSession(newUser);
-    return { user: newUser };
-};
-
-const mockLogin = async (email: string, password: string) => {
-    await new Promise(r => setTimeout(r, 500));
-    if (email === 'admin@zap.com' && password === 'admin') {
-         const u: User = { uid: 'admin-local', name: 'Admin Local', email, plan: 'enterprise', isAuthenticated: true, isAdmin: true };
-         authService.setSession(u);
-         return { user: u };
-    }
-    const u: User = { uid: 'local-user', name: 'Usuário Local', email, plan: 'free', isAuthenticated: true, isAdmin: false };
-    authService.setSession(u);
-    return { user: u };
 };
